@@ -1,4 +1,4 @@
-// 云函数入口文件 - 百度 OCR 识别（优化版）
+// 云函数入口文件 - 百度 OCR 识别（优化版 v2）
 const cloud = require('wx-server-sdk')
 
 cloud.init({
@@ -97,8 +97,9 @@ function detectPlatform(lines, allText) {
     return 'taobao'
   }
   
-  // 京东
-  if (text.includes('京东') || text.includes('jd.com') || text.includes('jd ')) {
+  // 京东 - 关键词更多
+  if (text.includes('京东') || text.includes('jd.com') || text.includes('jd ') || 
+      text.includes('自营') || text.includes('京东超市') || text.includes('京东到家')) {
     return 'jd'
   }
   
@@ -122,13 +123,122 @@ function detectPlatform(lines, allText) {
     return 'kuaishou'
   }
   
-  // 通过页面特征判断
-  for (const line of lines) {
-    if (line.includes('订单详情')) return 'unknown'
-    if (line.includes('订单编号')) return 'unknown'
+  return 'other'
+}
+
+// ==================== 京东解析（重点优化）====================
+
+function parseJDOrder(lines, allText) {
+  const result = {
+    productName: '',
+    price: '',
+    quantity: 1,
+    unitPrice: '',
+    orderTime: '',
+    platform: 'jd',
+    rawText: allText
   }
   
-  return 'unknown'
+  console.log('开始解析京东订单, 行数:', lines.length)
+  
+  // 京东订单特征分析：
+  // 1. 商品名通常在"京东超市XXX"或"自营XXX"后面
+  // 2. 商品名包含品牌+商品名+规格（如：贝亲桃子水200ml*2）
+  // 3. 价格格式：￥45.77 或 到手￥45.77
+  
+  // 商品名关键词（用于识别商品行）
+  const productKeywords = ['ml', 'g', 'kg', '片', '装', '包', '瓶', '罐', '袋', '盒', '套', '件', '只', '双', '本']
+  
+  // 过滤掉的非商品行关键词
+  const excludeKeywords = [
+    '售后', '服务', '完成', '感谢', '支持', '评价', '客服', '问题',
+    '订单', '编号', '支付', '方式', '发票', '物流', '退货', '保障',
+    '查看', '全部', '更多', '复制', '购买', '购物车', '上市', '周年',
+    '旗舰店', '自营店', '无理由', '政策', '安心', '快速', '破损',
+    '缺少', '配件', '附件', '银行卡', 'PLUS'
+  ]
+  
+  // 1. 找商品名 - 优先找包含"京东超市"的行
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim()
+    
+    // 检查是否是商品行
+    if (line.startsWith('京东超市') || line.startsWith('京东自营') || line.includes('京东超市')) {
+      // 这行就是商品名
+      if (line.length > 10) {
+        result.productName = line.replace(/京东超市|京东自营/g, '').trim()
+        console.log('找到商品名(京东前缀):', result.productName)
+        break
+      }
+    }
+    
+    // 备选：找包含商品规格的行
+    if (!result.productName && line.length > 15 && line.length < 80) {
+      const hasSpec = productKeywords.some(kw => line.toLowerCase().includes(kw))
+      const isExcluded = excludeKeywords.some(kw => line.includes(kw))
+      
+      if (hasSpec && !isExcluded && !line.includes('￥') && !line.includes('¥')) {
+        result.productName = line
+        console.log('找到商品名(规格匹配):', result.productName)
+        break
+      }
+    }
+  }
+  
+  // 2. 如果还没找到，用最后一招：找最长的非价格、非排除行
+  if (!result.productName) {
+    const candidates = lines.filter(line => {
+      const trimmed = line.trim()
+      if (trimmed.length < 10 || trimmed.length > 80) return false
+      if (trimmed.includes('￥') || trimmed.includes('¥')) return false
+      if (excludeKeywords.some(kw => trimmed.includes(kw))) return false
+      return true
+    })
+    
+    if (candidates.length > 0) {
+      // 取最长的
+      result.productName = candidates.reduce((a, b) => a.length >= b.length ? a : b)
+      console.log('找到商品名(最长匹配):', result.productName)
+    }
+  }
+  
+  // 3. 找价格
+  const pricePatterns = [
+    /(?:到手|实付款?|合计|总价|总额)[:\s]*[¥￥]?\s*(\d+\.?\d*)/i,
+    /[¥￥]\s*(\d+\.\d{2})/g
+  ]
+  
+  for (const pattern of pricePatterns) {
+    const matches = allText.match(pattern)
+    if (matches) {
+      // 如果有多个价格，取最后一个（通常是实付）
+      const match = Array.isArray(matches) ? matches[matches.length - 1] : matches
+      const priceMatch = match.match(/(\d+\.?\d*)/)
+      if (priceMatch) {
+        result.price = parseFloat(priceMatch[1]).toFixed(2)
+        result.unitPrice = result.price
+        console.log('找到价格:', result.price)
+        break
+      }
+    }
+  }
+  
+  // 4. 找数量
+  const qtyMatch = allText.match(/数量[×x*]\s*(\d+)/i)
+  if (qtyMatch) {
+    result.quantity = parseInt(qtyMatch[1])
+    console.log('找到数量:', result.quantity)
+  }
+  
+  // 5. 找时间（京东订单通常没有时间，用当前日期）
+  const timeMatch = allText.match(/(\d{4}[-/]\d{1,2}[-/]\d{1,2})/)
+  if (timeMatch) {
+    result.orderTime = timeMatch[1]
+  } else {
+    result.orderTime = new Date().toISOString().split('T')[0]
+  }
+  
+  return result
 }
 
 // ==================== 淘宝/天猫解析 ====================
@@ -144,183 +254,41 @@ function parseTaobaoOrder(lines, allText) {
     rawText: allText
   }
   
-  // 淘宝订单详情页特征：
-  // - 商品名通常在"宝贝"或"商品"后面
-  // - 实付款在最下方
-  // - 订单时间格式：2024-03-27 10:30:00
+  // 淘宝订单特征：商品名在"宝贝"后面
   
-  // 1. 找商品名
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
-    // 淘宝订单详情页：商品名通常在"宝贝详情"或商品图下面
-    if (line.includes('宝贝') || line.includes('商品名') || line.includes('商品详情')) {
-      // 下一行通常是商品名
-      if (i + 1 < lines.length) {
-        const nextLine = lines[i + 1].trim()
-        if (nextLine.length > 2 && !nextLine.includes('¥') && !nextLine.includes('订单')) {
-          result.productName = nextLine
-          break
-        }
+    if (line.includes('宝贝') && i + 1 < lines.length) {
+      const nextLine = lines[i + 1].trim()
+      if (nextLine.length > 2 && !nextLine.includes('¥')) {
+        result.productName = nextLine.substring(0, 50)
+        break
       }
     }
   }
   
-  // 如果没找到，用备选方案：找最长的非价格行
   if (!result.productName) {
     for (const line of lines) {
       if (line.length > 5 && !line.includes('¥') && !line.includes('订单') && 
-          !line.includes('时间') && !line.includes('地址') && !line.includes('电话')) {
+          !line.includes('时间') && !line.includes('地址')) {
         result.productName = line.substring(0, 50)
         break
       }
     }
   }
   
-  // 2. 找实付款
-  const pricePatterns = [
-    /实付款[:\s]*[¥￥]?\s*(\d+\.?\d*)/,
-    /实付[:\s]*[¥￥]?\s*(\d+\.?\d*)/,
-    /合计[:\s]*[¥￥]?\s*(\d+\.?\d*)/,
-    /总计[:\s]*[¥￥]?\s*(\d+\.?\d*)/,
-    /[¥￥]\s*(\d+\.\d{2})/g
-  ]
-  
-  for (const pattern of pricePatterns) {
-    const match = allText.match(pattern)
-    if (match) {
-      result.price = parseFloat(match[1] || match[0]).toFixed(2)
-      result.unitPrice = result.price
-      break
-    }
+  // 找实付款
+  const priceMatch = allText.match(/(?:实付款?|合计)[:\s]*[¥￥]?\s*(\d+\.?\d*)/)
+  if (priceMatch) {
+    result.price = parseFloat(priceMatch[1]).toFixed(2)
+    result.unitPrice = result.price
   }
   
-  // 3. 找订单时间
-  const timeMatch = allText.match(/(\d{4}[-/]\d{1,2}[-/]\d{1,2}\s*\d{0,2}:?\d{0,2}:?\d{0,2})/)
-  if (timeMatch) {
-    result.orderTime = timeMatch[1].split(' ')[0] // 只取日期部分
-  }
-  
-  // 4. 找数量
-  const qtyMatch = allText.match(/(?:数量|件数|x|×)\s*(\d+)/i)
-  if (qtyMatch) {
-    result.quantity = parseInt(qtyMatch[1])
-  }
-  
-  return result
-}
-
-// ==================== 京东解析 ====================
-
-function parseJDOrder(lines, allText) {
-  const result = {
-    productName: '',
-    price: '',
-    quantity: 1,
-    unitPrice: '',
-    orderTime: '',
-    platform: 'jd',
-    rawText: allText
-  }
-  
-  console.log('京东订单解析开始，总行数:', lines.length)
-  console.log('前10行:', lines.slice(0, 10))
-  
-  // 京东订单详情页特征：
-  // - 商品名通常是较长的描述行，包含品牌、规格等
-  // - 可能有 "*N件" 表示数量
-  // - 价格通常显示为 "总额 ¥XXX.XX" 或直接 "¥XXX.XX"
-  // - 订单编号格式：京东订单号
-  
-  // 京东订单中需要排除的关键词（非商品名）
-  const excludeKeywords = [
-    '订单编号', '下单时间', '付款时间', '发货时间', '收货时间',
-    '收货地址', '收货人', '联系电话', '买家留言', '发票信息',
-    '订单详情', '商品详情', '订单状态', '售后服务',
-    '总额', '实付款', '优惠', '运费', '京豆', '余额',
-    '¥', '￥', '京东', 'JD', 'jd.com',
-    '待收货', '已完成', '已发货', '待发货', '待付款',
-    '申请售后', '再次购买', '分享订单', '联系客服',
-    '快递单号', '物流信息', '配送', '快递员'
-  ]
-  
-  // 1. 找商品名
-  // 策略：找到最长的、不含排除关键词的行
-  const candidateLines = []
-  
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim()
-    
-    // 跳过太短或太长的行
-    if (line.length < 5 || line.length > 100) continue
-    
-    // 跳过包含排除关键词的行
-    if (excludeKeywords.some(kw => line.includes(kw))) continue
-    
-    // 跳过纯数字行
-    if (/^\d+$/.test(line)) continue
-    
-    // 跳过纯日期时间行
-    if (/^\d{4}[-/年]\d{1,2}[-/月]\d{1,2}日?/.test(line) && line.length < 20) continue
-    
-    // 这是一个可能的商品名
-    candidateLines.push({
-      line,
-      index: i,
-      length: line.length
-    })
-  }
-  
-  console.log('候选商品名行数:', candidateLines.length)
-  candidateLines.slice(0, 3).forEach(c => console.log('  候选:', c.line.substring(0, 30) + '...'))
-  
-  // 选择最长的候选行作为商品名
-  if (candidateLines.length > 0) {
-    candidateLines.sort((a, b) => b.length - a.length)
-    result.productName = candidateLines[0].line.substring(0, 60)
-  }
-  
-  // 2. 提取数量（从商品名中提取 "*N件" 或 "×N"）
-  const qtyPatterns = [
-    /\*\s*(\d+)\s*件/,
-    /×\s*(\d+)/,
-    /x\s*(\d+)/i,
-    /(\d+)\s*件/
-  ]
-  
-  for (const pattern of qtyPatterns) {
-    const match = result.productName.match(pattern)
-    if (match) {
-      result.quantity = parseInt(match[1])
-      // 从商品名中移除数量信息
-      result.productName = result.productName.replace(pattern, '').trim()
-      break
-    }
-  }
-  
-  // 3. 找价格
-  // 京东价格特征：总额 ¥XXX.XX 或 ¥XXX.XX
-  const pricePatterns = [
-    /总额\s*[¥￥]?\s*(\d+\.?\d*)/,
-    /实付款\s*[¥￥]?\s*(\d+\.?\d*)/,
-    /[¥￥]\s*(\d+\.\d{2})/
-  ]
-  
-  for (const pattern of pricePatterns) {
-    const match = allText.match(pattern)
-    if (match) {
-      result.price = parseFloat(match[1]).toFixed(2)
-      result.unitPrice = result.price
-      break
-    }
-  }
-  
-  // 4. 找订单时间
+  // 找时间
   const timeMatch = allText.match(/(\d{4}[-/]\d{1,2}[-/]\d{1,2})/)
   if (timeMatch) {
-    result.orderTime = timeMatch[1].replace(/[/]/g, '-')
+    result.orderTime = timeMatch[1]
   }
-  
-  console.log('京东解析结果:', result)
   
   return result
 }
@@ -338,13 +306,7 @@ function parsePDDOrder(lines, allText) {
     rawText: allText
   }
   
-  // 拼多多订单特征：
-  // - 商品名较长
-  // - "实付款" 或 "总价"
-  
-  // 1. 找商品名
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]
+  for (const line of lines) {
     if (line.length > 5 && !line.includes('¥') && !line.includes('订单') && 
         !line.includes('时间') && !line.includes('地址')) {
       result.productName = line.substring(0, 50)
@@ -352,22 +314,12 @@ function parsePDDOrder(lines, allText) {
     }
   }
   
-  // 2. 找价格
-  const pricePatterns = [
-    /(?:实付款|实付|总价|合计)[:\s]*[¥￥]?\s*(\d+\.?\d*)/,
-    /[¥￥]\s*(\d+\.\d{2})/
-  ]
-  
-  for (const pattern of pricePatterns) {
-    const match = allText.match(pattern)
-    if (match) {
-      result.price = parseFloat(match[1]).toFixed(2)
-      result.unitPrice = result.price
-      break
-    }
+  const priceMatch = allText.match(/(?:实付款?|总价|合计)[:\s]*[¥￥]?\s*(\d+\.?\d*)/)
+  if (priceMatch) {
+    result.price = parseFloat(priceMatch[1]).toFixed(2)
+    result.unitPrice = result.price
   }
   
-  // 3. 找时间
   const timeMatch = allText.match(/(\d{4}[-/]\d{1,2}[-/]\d{1,2})/)
   if (timeMatch) {
     result.orderTime = timeMatch[1]
@@ -376,7 +328,7 @@ function parsePDDOrder(lines, allText) {
   return result
 }
 
-// ==================== 通用解析（未知平台）====================
+// ==================== 通用解析 ====================
 
 function parseGenericOrder(lines, allText) {
   const result = {
@@ -389,7 +341,7 @@ function parseGenericOrder(lines, allText) {
     rawText: allText
   }
   
-  // 1. 找商品名：最长的非价格行
+  // 找最长的非价格行
   const candidates = lines.filter(l => {
     const trimmed = l.trim()
     return trimmed.length > 3 && 
@@ -397,42 +349,23 @@ function parseGenericOrder(lines, allText) {
            !trimmed.includes('￥') &&
            !trimmed.includes('订单') &&
            !trimmed.includes('时间') &&
-           !trimmed.includes('地址') &&
-           !trimmed.includes('电话') &&
-           !trimmed.includes('收货') &&
-           !trimmed.match(/^\d+$/) // 纯数字行
+           !trimmed.includes('地址')
   })
   
   if (candidates.length > 0) {
-    // 取最长的作为商品名
     result.productName = candidates.reduce((a, b) => a.length >= b.length ? a : b).substring(0, 50)
   }
   
-  // 2. 找价格：优先找"实付"、"合计"等关键词
-  const pricePatterns = [
-    /(?:实付款?|合计|总计|总额|金额|价格)[:\s]*[¥￥]?\s*(\d+\.?\d*)/i,
-    /[¥￥]\s*(\d+\.\d{2})/
-  ]
-  
-  for (const pattern of pricePatterns) {
-    const match = allText.match(pattern)
-    if (match) {
-      result.price = parseFloat(match[1]).toFixed(2)
-      result.unitPrice = result.price
-      break
-    }
+  // 找价格
+  const priceMatch = allText.match(/(?:实付款?|合计|总计|总额)[:\s]*[¥￥]?\s*(\d+\.?\d*)/)
+  if (priceMatch) {
+    result.price = parseFloat(priceMatch[1]).toFixed(2)
+    result.unitPrice = result.price
   }
   
-  // 3. 找时间
   const timeMatch = allText.match(/(\d{4}[-/]\d{1,2}[-/]\d{1,2})/)
   if (timeMatch) {
     result.orderTime = timeMatch[1]
-  }
-  
-  // 4. 找数量
-  const qtyMatch = allText.match(/(?:数量|件数|x|×)\s*(\d+)/i)
-  if (qtyMatch) {
-    result.quantity = parseInt(qtyMatch[1])
   }
   
   return result
@@ -444,9 +377,9 @@ function guessCategory(productName) {
   const name = (productName || '').toLowerCase()
   
   const categoryKeywords = {
-    1: ['奶粉', '奶瓶', '辅食', '米粉', '营养', '水杯', '喂养', '吸管杯', '保温杯', '奶嘴', '咬咬乐'],
-    2: ['纸尿裤', '尿布', '湿巾', '洗澡', '洗护', '护肤', '防晒', '洗衣液', '沐浴露', '洗发', '面霜', '护臀', '棉柔巾', '拉拉裤'],
-    3: ['衣服', '裤子', '鞋子', '袜子', '帽子', '外套', '连衣裙', '连体衣', '哈衣', '围嘴', ' bib', '内衣', '套装'],
+    1: ['奶粉', '奶瓶', '辅食', '米粉', '营养', '水杯', '喂养', '吸管杯', '保温杯', '奶嘴', '咬咬乐', '贝亲'],
+    2: ['纸尿裤', '尿布', '湿巾', '洗澡', '洗护', '护肤', '防晒', '洗衣液', '沐浴露', '洗发', '面霜', '护臀', '棉柔巾', '拉拉裤', '爽身露', '桃子水'],
+    3: ['衣服', '裤子', '鞋子', '袜子', '帽子', '外套', '连衣裙', '连体衣', '哈衣', '围嘴', '内衣', '套装'],
     4: ['玩具', '积木', '绘本', '图书', '滑梯', '摇马', '早教机', '故事机', '拼图', '毛绒'],
     5: ['药品', '药', '体温计', '退热贴', '医疗', '益生菌', '维生', '钙', '锌', 'dha', 'ad'],
     6: ['早教', '课程', '启蒙', '学习', '教育', '游泳', '亲子']
@@ -529,14 +462,15 @@ exports.main = async (event, context) => {
     return {
       success: true,
       data: {
-        ...parsed,
+        productName: parsed.productName,
+        price: parsed.price,
+        quantity: parsed.quantity,
+        unitPrice: parsed.unitPrice,
+        orderTime: parsed.orderTime,
+        platform: parsed.platform,
         categoryId,
-        // 调试信息
-        _debug: {
-          platform,
-          lineCount: lines.length,
-          firstLines: lines.slice(0, 5)
-        }
+        rawText: allText,
+        words: lines
       }
     }
 
