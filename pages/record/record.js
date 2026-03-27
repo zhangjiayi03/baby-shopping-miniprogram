@@ -10,6 +10,7 @@ Page({
       { id: 'jd', name: '京东' },
       { id: 'pdd', name: '拼多多' },
       { id: 'douyin', name: '抖音' },
+      { id: 'meituan', name: '美团' },
       { id: 'other', name: '其他' }
     ],
     categories: [],
@@ -17,6 +18,7 @@ Page({
     tempImagePath: '',
     recognizeResult: null,
     isRecognizing: false,
+    debugInfo: '', // 调试信息
     
     // 表单数据
     form: {
@@ -85,7 +87,7 @@ Page({
 
   // 调用云函数 OCR 识别
   async recognizeImage(imagePath) {
-    this.setData({ isRecognizing: true })
+    this.setData({ isRecognizing: true, debugInfo: '' })
     wx.showLoading({ title: '识别中...' })
     
     try {
@@ -100,6 +102,8 @@ Page({
         throw new Error('图片上传失败')
       }
       
+      console.log('图片上传成功:', uploadResult.fileID)
+      
       // 调用云函数进行 OCR
       const result = await wx.cloud.callFunction({
         name: 'ocr',
@@ -110,16 +114,47 @@ Page({
       })
       
       wx.hideLoading()
+      console.log('OCR 结果:', result.result)
       
       if (result.result && result.result.success) {
         const ocrData = result.result.data
-        const recognized = this.parseOcrResult(ocrData)
+        
+        // 直接使用云函数返回的解析结果
+        const recognized = {
+          productName: ocrData.productName || '未识别商品',
+          price: ocrData.price || '0.00',
+          quantity: ocrData.quantity || 1,
+          unitPrice: ocrData.unitPrice || ocrData.price || '0.00',
+          platform: ocrData.platform || this.data.selectedPlatform || 'other',
+          platformName: this.getPlatformName(ocrData.platform || this.data.selectedPlatform || 'other'),
+          orderTime: ocrData.orderTime || new Date().toISOString().split('T')[0],
+          categoryId: ocrData.categoryId || 7,
+          categoryIcon: this.getCategoryIcon(ocrData.categoryId || 7),
+          categoryName: this.getCategoryName(ocrData.categoryId || 7)
+        }
+        
+        // 保存调试信息
+        let debugInfo = ''
+        if (ocrData.rawText) {
+          debugInfo = '原始文字:\n' + ocrData.rawText.substring(0, 200)
+        }
         
         this.setData({
           recognizeResult: recognized,
           isRecognizing: false,
-          selectedCategory: recognized.categoryId
+          selectedCategory: recognized.categoryId,
+          debugInfo: debugInfo
         })
+        
+        // 如果识别结果不完整，提示用户
+        if (!ocrData.productName || ocrData.productName === '未识别商品') {
+          wx.showToast({
+            title: '商品名未识别，请手动修改',
+            icon: 'none',
+            duration: 2000
+          })
+        }
+        
       } else {
         throw new Error(result.result?.error || '识别失败')
       }
@@ -128,98 +163,32 @@ Page({
       wx.hideLoading()
       this.setData({ isRecognizing: false })
       
-      // 识别失败，手动输入
+      // 识别失败，提示用户
       wx.showModal({
         title: '识别失败',
-        content: '无法识别图片内容，请手动输入',
-        showCancel: false,
-        success: () => {
-          this.setData({ activeTab: 'manual' })
+        content: `${err.message || '无法识别图片内容'}\n\n请尝试手动输入`,
+        showCancel: true,
+        cancelText: '取消',
+        confirmText: '手动输入',
+        success: (res) => {
+          if (res.confirm) {
+            this.setData({ activeTab: 'manual' })
+          }
         }
       })
     }
   },
 
-  // 解析 OCR 结果
-  parseOcrResult(ocrData) {
-    // 根据 OCR 返回的数据结构解析
-    let productName = ''
-    let price = ''
-    let orderTime = ''
-    
-    if (ocrData.words_result) {
-      const words = ocrData.words_result.map(item => item.words).join(' ')
-      productName = this.extractProduct(words)
-      price = this.extractPrice(words)
-      orderTime = this.extractDate(words)
-    }
-    
-    // 智能分类
-    const category = this.guessCategory(productName)
-    
-    return {
-      productName: productName || '未识别商品',
-      quantity: 1,
-      unitPrice: price || '0.00',
-      price: price || '0.00',
-      platform: this.data.selectedPlatform || 'other',
-      platformName: this.getPlatformName(this.data.selectedPlatform || 'other'),
-      orderTime: orderTime || new Date().toISOString().split('T')[0],
-      categoryId: category.id,
-      categoryIcon: category.icon,
-      categoryName: category.name
-    }
+  // 获取分类图标
+  getCategoryIcon(categoryId) {
+    const category = this.data.categories.find(c => c.id === categoryId)
+    return category ? category.icon : '📦'
   },
 
-  // 从文字中提取商品名
-  extractProduct(text) {
-    const lines = text.split('\n').filter(l => l.trim())
-    if (lines.length > 0) {
-      return lines[0].substring(0, 50)
-    }
-    return ''
-  },
-
-  // 从文字中提取价格
-  extractPrice(text) {
-    const priceMatch = text.match(/(?:¥|￥|价格|金额|合计|总计|实付)[:\s]*(\d+\.?\d*)/)
-    if (priceMatch) {
-      return parseFloat(priceMatch[1]).toFixed(2)
-    }
-    const numMatch = text.match(/(\d+\.\d{2})/)
-    return numMatch ? numMatch[1] : '0.00'
-  },
-
-  // 从文字中提取日期
-  extractDate(text) {
-    const dateMatch = text.match(/(\d{4}[-/年]\d{1,2}[-/月]\d{1,2}日?)/)
-    if (dateMatch) {
-      return dateMatch[1].replace(/[年月日]/g, '-').replace(/\/-/g, '-')
-    }
-    return new Date().toISOString().split('T')[0]
-  },
-
-  // 智能猜测分类
-  guessCategory(productName) {
-    const name = productName.toLowerCase()
-    const categories = this.data.categories
-    
-    const keywords = {
-      1: ['奶粉', '奶瓶', '辅食', '米粉', '营养', '水杯', '宝宝水'],
-      2: ['纸尿裤', '尿布', '湿巾', '洗澡', '洗护', '护肤', '防晒', '洗衣液'],
-      3: ['衣服', '裤子', '鞋子', '袜子', '帽子', '外套', '连衣裙'],
-      4: ['玩具', '积木', '绘本', '图书', '滑梯', '摇马'],
-      5: ['药品', '药', '体温计', '退热贴', '医疗'],
-      6: ['早教', '课程', '启蒙', '学习', '教育']
-    }
-    
-    for (const [catId, words] of Object.entries(keywords)) {
-      if (words.some(word => name.includes(word))) {
-        return categories.find(c => c.id == catId) || categories[6]
-      }
-    }
-    
-    return categories[6]
+  // 获取分类名称
+  getCategoryName(categoryId) {
+    const category = this.data.categories.find(c => c.id === categoryId)
+    return category ? category.name : '其他'
   },
 
   getPlatformName(id) {
@@ -248,6 +217,20 @@ Page({
     })
   },
 
+  // 编辑识别结果中的商品名
+  onEditProductName(e) {
+    this.setData({
+      'recognizeResult.productName': e.detail.value
+    })
+  },
+
+  // 编辑识别结果中的价格
+  onEditPrice(e) {
+    this.setData({
+      'recognizeResult.price': e.detail.value
+    })
+  },
+
   onBabyChange(e) {
     const index = e.detail.value
     this.setData({ 
@@ -265,12 +248,19 @@ Page({
       return
     }
     
+    // 检查价格是否有效
+    const price = parseFloat(recognizeResult.price)
+    if (isNaN(price) || price <= 0) {
+      wx.showToast({ title: '请输入有效金额', icon: 'none' })
+      return
+    }
+    
     const record = {
       id: Date.now().toString(),
       productName: recognizeResult.productName,
-      price: parseFloat(recognizeResult.price) || 0,
+      price: price,
       quantity: recognizeResult.quantity || 1,
-      unitPrice: parseFloat(recognizeResult.unitPrice) || 0,
+      unitPrice: parseFloat(recognizeResult.unitPrice) || price,
       categoryId: recognizeResult.categoryId,
       platform: recognizeResult.platform,
       orderTime: recognizeResult.orderTime,
@@ -354,6 +344,7 @@ Page({
     this.setData({
       tempImagePath: '',
       recognizeResult: null,
+      debugInfo: '',
       form: {
         productName: '',
         price: '',

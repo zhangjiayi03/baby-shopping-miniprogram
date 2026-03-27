@@ -1,11 +1,11 @@
-// 云函数入口文件 - 百度 OCR 识别
+// 云函数入口文件 - 百度 OCR 识别（优化版）
 const cloud = require('wx-server-sdk')
 
 cloud.init({
   env: cloud.DYNAMIC_CURRENT_ENV
 })
 
-// 百度 OCR 配置（从环境变量或配置文件读取）
+// 百度 OCR 配置
 const BAIDU_OCR_CONFIG = {
   apiKey: process.env.BAIDU_OCR_API_KEY || '',
   secretKey: process.env.BAIDU_OCR_SECRET_KEY || '',
@@ -17,7 +17,6 @@ const BAIDU_OCR_CONFIG = {
  * 获取百度 Access Token
  */
 async function getBaiduAccessToken() {
-  // 如果 token 未过期，直接返回
   if (BAIDU_OCR_CONFIG.accessToken && Date.now() < BAIDU_OCR_CONFIG.tokenExpire) {
     return BAIDU_OCR_CONFIG.accessToken
   }
@@ -29,7 +28,6 @@ async function getBaiduAccessToken() {
 
   if (data.access_token) {
     BAIDU_OCR_CONFIG.accessToken = data.access_token
-    // token 有效期 30 天，提前 1 小时刷新
     BAIDU_OCR_CONFIG.tokenExpire = Date.now() + (data.expires_in - 3600) * 1000
     return data.access_token
   }
@@ -38,44 +36,27 @@ async function getBaiduAccessToken() {
 }
 
 /**
- * 百度通用文字识别
+ * 百度通用文字识别（高精度版）
+ */
+async function baiduAccurateOCR(imageBase64, accessToken) {
+  const url = `https://aip.baidubce.com/rest/2.0/ocr/v1/accurate_basic?access_token=${accessToken}`
+  
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: `image=${encodeURIComponent(imageBase64)}&detect_direction=true`
+  })
+
+  return res.json()
+}
+
+/**
+ * 百度通用文字识别（标准版）
  */
 async function baiduGeneralOCR(imageBase64, accessToken) {
   const url = `https://aip.baidubce.com/rest/2.0/ocr/v1/general_basic?access_token=${accessToken}`
-  
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-    body: `image=${encodeURIComponent(imageBase64)}`
-  })
-
-  return res.json()
-}
-
-/**
- * 百度购物小票识别（更适合订单）
- */
-async function baiduReceiptOCR(imageBase64, accessToken) {
-  const url = `https://aip.baidubce.com/rest/2.0/solution/v1/iocr/recognise/receipt?access_token=${accessToken}`
-  
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-    body: `image=${encodeURIComponent(imageBase64)}`
-  })
-
-  return res.json()
-}
-
-/**
- * 百度增值税发票识别（用于发票类）
- */
-async function baiduVatInvoiceOCR(imageBase64, accessToken) {
-  const url = `https://aip.baidubce.com/rest/2.0/ocr/v1/vat_invoice?access_token=${accessToken}`
   
   const res = await fetch(url, {
     method: 'POST',
@@ -103,47 +84,173 @@ async function downloadImageAsBase64(fileID) {
   throw new Error('下载图片失败')
 }
 
+// ==================== 平台识别 ====================
+
 /**
- * 解析订单信息
+ * 识别订单所属平台
  */
-function parseOrderInfo(ocrResult, type = 'general') {
+function detectPlatform(lines, allText) {
+  const text = allText.toLowerCase()
+  
+  // 淘宝/天猫
+  if (text.includes('淘宝') || text.includes('天猫') || text.includes('tmall') || text.includes('taobao')) {
+    return 'taobao'
+  }
+  
+  // 京东
+  if (text.includes('京东') || text.includes('jd.com') || text.includes('jd ')) {
+    return 'jd'
+  }
+  
+  // 拼多多
+  if (text.includes('拼多多') || text.includes('pinduoduo') || text.includes('pdd')) {
+    return 'pdd'
+  }
+  
+  // 抖音
+  if (text.includes('抖音') || text.includes('douyin') || text.includes('抖店')) {
+    return 'douyin'
+  }
+  
+  // 美团
+  if (text.includes('美团') || text.includes('meituan')) {
+    return 'meituan'
+  }
+  
+  // 快手
+  if (text.includes('快手') || text.includes('kuaishou')) {
+    return 'kuaishou'
+  }
+  
+  // 通过页面特征判断
+  for (const line of lines) {
+    if (line.includes('订单详情')) return 'unknown'
+    if (line.includes('订单编号')) return 'unknown'
+  }
+  
+  return 'unknown'
+}
+
+// ==================== 淘宝/天猫解析 ====================
+
+function parseTaobaoOrder(lines, allText) {
   const result = {
     productName: '',
     price: '',
     quantity: 1,
     unitPrice: '',
     orderTime: '',
-    platform: '',
-    rawText: ''
+    platform: 'taobao',
+    rawText: allText
   }
-
-  if (!ocrResult.words_result || ocrResult.words_result.length === 0) {
-    return result
-  }
-
-  // 拼接所有文字
-  const allText = ocrResult.words_result.map(w => w.words).join('\n')
-  result.rawText = allText
-
-  // 提取商品名（通常在前几行）
-  const lines = ocrResult.words_result.map(w => w.words)
-  for (let i = 0; i < Math.min(5, lines.length); i++) {
+  
+  // 淘宝订单详情页特征：
+  // - 商品名通常在"宝贝"或"商品"后面
+  // - 实付款在最下方
+  // - 订单时间格式：2024-03-27 10:30:00
+  
+  // 1. 找商品名
+  for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
-    // 跳过明显的非商品名
-    if (line.includes('订单') || line.includes('详情') || line.includes('时间') || line.includes('金额')) {
-      continue
+    // 淘宝订单详情页：商品名通常在"宝贝详情"或商品图下面
+    if (line.includes('宝贝') || line.includes('商品名') || line.includes('商品详情')) {
+      // 下一行通常是商品名
+      if (i + 1 < lines.length) {
+        const nextLine = lines[i + 1].trim()
+        if (nextLine.length > 2 && !nextLine.includes('¥') && !nextLine.includes('订单')) {
+          result.productName = nextLine
+          break
+        }
+      }
     }
-    if (line.length > 2 && line.length < 50) {
-      result.productName = line
+  }
+  
+  // 如果没找到，用备选方案：找最长的非价格行
+  if (!result.productName) {
+    for (const line of lines) {
+      if (line.length > 5 && !line.includes('¥') && !line.includes('订单') && 
+          !line.includes('时间') && !line.includes('地址') && !line.includes('电话')) {
+        result.productName = line.substring(0, 50)
+        break
+      }
+    }
+  }
+  
+  // 2. 找实付款
+  const pricePatterns = [
+    /实付款[:\s]*[¥￥]?\s*(\d+\.?\d*)/,
+    /实付[:\s]*[¥￥]?\s*(\d+\.?\d*)/,
+    /合计[:\s]*[¥￥]?\s*(\d+\.?\d*)/,
+    /总计[:\s]*[¥￥]?\s*(\d+\.?\d*)/,
+    /[¥￥]\s*(\d+\.\d{2})/g
+  ]
+  
+  for (const pattern of pricePatterns) {
+    const match = allText.match(pattern)
+    if (match) {
+      result.price = parseFloat(match[1] || match[0]).toFixed(2)
+      result.unitPrice = result.price
       break
     }
   }
+  
+  // 3. 找订单时间
+  const timeMatch = allText.match(/(\d{4}[-/]\d{1,2}[-/]\d{1,2}\s*\d{0,2}:?\d{0,2}:?\d{0,2})/)
+  if (timeMatch) {
+    result.orderTime = timeMatch[1].split(' ')[0] // 只取日期部分
+  }
+  
+  // 4. 找数量
+  const qtyMatch = allText.match(/(?:数量|件数|x|×)\s*(\d+)/i)
+  if (qtyMatch) {
+    result.quantity = parseInt(qtyMatch[1])
+  }
+  
+  return result
+}
 
-  // 提取价格
+// ==================== 京东解析 ====================
+
+function parseJDOrder(lines, allText) {
+  const result = {
+    productName: '',
+    price: '',
+    quantity: 1,
+    unitPrice: '',
+    orderTime: '',
+    platform: 'jd',
+    rawText: allText
+  }
+  
+  // 京东订单特征：
+  // - 商品名前面通常有商品图
+  // - "总额" 或 "实付款"
+  // - 订单编号：JD开头
+  
+  // 1. 找商品名
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    if (line.includes('商品') && i + 1 < lines.length) {
+      const nextLine = lines[i + 1].trim()
+      if (nextLine.length > 2 && !nextLine.includes('¥')) {
+        result.productName = nextLine.substring(0, 50)
+        break
+      }
+    }
+  }
+  
+  // 备选：找长文本行
+  if (!result.productName) {
+    const longLines = lines.filter(l => l.length > 10 && !l.includes('¥') && !l.includes('订单'))
+    if (longLines.length > 0) {
+      result.productName = longLines[0].substring(0, 50)
+    }
+  }
+  
+  // 2. 找价格
   const pricePatterns = [
-    /(?:实付|合计|总计|金额|价格|总计)[:\s]*[¥￥]?\s*(\d+\.?\d*)/,
-    /[¥￥]\s*(\d+\.\d{2})/,
-    /(\d+\.\d{2})\s*元/
+    /(?:总额|实付款|实付|合计)[:\s]*[¥￥]?\s*(\d+\.?\d*)/,
+    /[¥￥]\s*(\d+\.\d{2})/
   ]
   
   for (const pattern of pricePatterns) {
@@ -154,60 +261,141 @@ function parseOrderInfo(ocrResult, type = 'general') {
       break
     }
   }
-
-  // 提取日期
-  const datePatterns = [
-    /(\d{4}[-/年]\d{1,2}[-/月]\d{1,2}日?)/,
-    /(\d{1,2}月\d{1,2}日)/,
-    /(\d{4}\d{2}\d{2})/
-  ]
   
-  for (const pattern of datePatterns) {
-    const match = allText.match(pattern)
-    if (match) {
-      let dateStr = match[1]
-      // 标准化日期格式
-      dateStr = dateStr.replace(/[年月日]/g, '-').replace(/-+/g, '-').replace(/-$/, '')
-      result.orderTime = dateStr
-      break
-    }
+  // 3. 找时间
+  const timeMatch = allText.match(/(\d{4}[-/]\d{1,2}[-/]\d{1,2})/)
+  if (timeMatch) {
+    result.orderTime = timeMatch[1]
   }
-
-  // 提取数量
-  const quantityMatch = allText.match(/(?:数量|件数)[:\s]*(\d+)/)
-  if (quantityMatch) {
-    result.quantity = parseInt(quantityMatch[1])
-  }
-
-  // 识别平台
-  if (allText.includes('淘宝') || allText.includes('天猫')) {
-    result.platform = 'taobao'
-  } else if (allText.includes('京东') || allText.includes('JD')) {
-    result.platform = 'jd'
-  } else if (allText.includes('拼多多') || allText.includes('PDD')) {
-    result.platform = 'pdd'
-  } else if (allText.includes('抖音')) {
-    result.platform = 'douyin'
-  } else if (allText.includes('美团')) {
-    result.platform = 'meituan'
-  }
-
+  
   return result
 }
 
-/**
- * 智能分类
- */
+// ==================== 拼多多解析 ====================
+
+function parsePDDOrder(lines, allText) {
+  const result = {
+    productName: '',
+    price: '',
+    quantity: 1,
+    unitPrice: '',
+    orderTime: '',
+    platform: 'pdd',
+    rawText: allText
+  }
+  
+  // 拼多多订单特征：
+  // - 商品名较长
+  // - "实付款" 或 "总价"
+  
+  // 1. 找商品名
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    if (line.length > 5 && !line.includes('¥') && !line.includes('订单') && 
+        !line.includes('时间') && !line.includes('地址')) {
+      result.productName = line.substring(0, 50)
+      break
+    }
+  }
+  
+  // 2. 找价格
+  const pricePatterns = [
+    /(?:实付款|实付|总价|合计)[:\s]*[¥￥]?\s*(\d+\.?\d*)/,
+    /[¥￥]\s*(\d+\.\d{2})/
+  ]
+  
+  for (const pattern of pricePatterns) {
+    const match = allText.match(pattern)
+    if (match) {
+      result.price = parseFloat(match[1]).toFixed(2)
+      result.unitPrice = result.price
+      break
+    }
+  }
+  
+  // 3. 找时间
+  const timeMatch = allText.match(/(\d{4}[-/]\d{1,2}[-/]\d{1,2})/)
+  if (timeMatch) {
+    result.orderTime = timeMatch[1]
+  }
+  
+  return result
+}
+
+// ==================== 通用解析（未知平台）====================
+
+function parseGenericOrder(lines, allText) {
+  const result = {
+    productName: '',
+    price: '',
+    quantity: 1,
+    unitPrice: '',
+    orderTime: '',
+    platform: 'other',
+    rawText: allText
+  }
+  
+  // 1. 找商品名：最长的非价格行
+  const candidates = lines.filter(l => {
+    const trimmed = l.trim()
+    return trimmed.length > 3 && 
+           !trimmed.includes('¥') && 
+           !trimmed.includes('￥') &&
+           !trimmed.includes('订单') &&
+           !trimmed.includes('时间') &&
+           !trimmed.includes('地址') &&
+           !trimmed.includes('电话') &&
+           !trimmed.includes('收货') &&
+           !trimmed.match(/^\d+$/) // 纯数字行
+  })
+  
+  if (candidates.length > 0) {
+    // 取最长的作为商品名
+    result.productName = candidates.reduce((a, b) => a.length >= b.length ? a : b).substring(0, 50)
+  }
+  
+  // 2. 找价格：优先找"实付"、"合计"等关键词
+  const pricePatterns = [
+    /(?:实付款?|合计|总计|总额|金额|价格)[:\s]*[¥￥]?\s*(\d+\.?\d*)/i,
+    /[¥￥]\s*(\d+\.\d{2})/
+  ]
+  
+  for (const pattern of pricePatterns) {
+    const match = allText.match(pattern)
+    if (match) {
+      result.price = parseFloat(match[1]).toFixed(2)
+      result.unitPrice = result.price
+      break
+    }
+  }
+  
+  // 3. 找时间
+  const timeMatch = allText.match(/(\d{4}[-/]\d{1,2}[-/]\d{1,2})/)
+  if (timeMatch) {
+    result.orderTime = timeMatch[1]
+  }
+  
+  // 4. 找数量
+  const qtyMatch = allText.match(/(?:数量|件数|x|×)\s*(\d+)/i)
+  if (qtyMatch) {
+    result.quantity = parseInt(qtyMatch[1])
+  }
+  
+  return result
+}
+
+// ==================== 智能分类 ====================
+
 function guessCategory(productName) {
   const name = (productName || '').toLowerCase()
   
   const categoryKeywords = {
-    1: ['奶粉', '奶瓶', '辅食', '米粉', '营养', '水杯', '喂养', '吸管杯', '保温杯'],
-    2: ['纸尿裤', '尿布', '湿巾', '洗澡', '洗护', '护肤', '防晒', '洗衣液', '沐浴露', '洗发', '面霜', '护臀'],
-    3: ['衣服', '裤子', '鞋子', '袜子', '帽子', '外套', '连衣裙', '连体衣', '哈衣', '围嘴'],
-    4: ['玩具', '积木', '绘本', '图书', '滑梯', '摇马', '早教机', '故事机'],
-    5: ['药品', '药', '体温计', '退热贴', '医疗', '益生菌', '维生'],
-    6: ['早教', '课程', '启蒙', '学习', '教育', '游泳']
+    1: ['奶粉', '奶瓶', '辅食', '米粉', '营养', '水杯', '喂养', '吸管杯', '保温杯', '奶嘴', '咬咬乐'],
+    2: ['纸尿裤', '尿布', '湿巾', '洗澡', '洗护', '护肤', '防晒', '洗衣液', '沐浴露', '洗发', '面霜', '护臀', '棉柔巾', '拉拉裤'],
+    3: ['衣服', '裤子', '鞋子', '袜子', '帽子', '外套', '连衣裙', '连体衣', '哈衣', '围嘴', ' bib', '内衣', '套装'],
+    4: ['玩具', '积木', '绘本', '图书', '滑梯', '摇马', '早教机', '故事机', '拼图', '毛绒'],
+    5: ['药品', '药', '体温计', '退热贴', '医疗', '益生菌', '维生', '钙', '锌', 'dha', 'ad'],
+    6: ['早教', '课程', '启蒙', '学习', '教育', '游泳', '亲子']
   }
 
   for (const [catId, keywords] of Object.entries(categoryKeywords)) {
@@ -219,7 +407,8 @@ function guessCategory(productName) {
   return 7 // 其他
 }
 
-// 云函数入口函数
+// ==================== 主函数 ====================
+
 exports.main = async (event, context) => {
   const { type = 'order', imgUrl, imageBase64 } = event
 
@@ -227,7 +416,6 @@ exports.main = async (event, context) => {
     // 1. 获取图片 Base64
     let base64 = imageBase64
     if (!base64 && imgUrl) {
-      // 从云存储下载
       base64 = await downloadImageAsBase64(imgUrl)
     }
 
@@ -238,36 +426,63 @@ exports.main = async (event, context) => {
     // 2. 获取百度 Access Token
     const accessToken = await getBaiduAccessToken()
 
-    // 3. 调用百度 OCR
-    let ocrResult
+    // 3. 调用百度 OCR（优先高精度版）
+    let ocrResult = await baiduAccurateOCR(base64, accessToken)
     
-    if (type === 'order') {
-      // 订单识别 - 先尝试通用 OCR
-      ocrResult = await baiduGeneralOCR(base64, accessToken)
-    } else if (type === 'receipt') {
-      // 小票识别
-      ocrResult = await baiduReceiptOCR(base64, accessToken)
-    } else if (type === 'invoice') {
-      // 发票识别
-      ocrResult = await baiduVatInvoiceOCR(base64, accessToken)
-    } else {
+    // 如果高精度版失败，降级到标准版
+    if (ocrResult.error_code && ocrResult.error_code !== 0) {
+      console.log('高精度OCR失败，降级到标准版:', ocrResult.error_msg)
       ocrResult = await baiduGeneralOCR(base64, accessToken)
     }
 
-    // 4. 解析结果
-    if (ocrResult.error_code) {
+    // 4. 检查识别结果
+    if (ocrResult.error_code && ocrResult.error_code !== 0) {
       throw new Error(ocrResult.error_msg || 'OCR 识别失败')
     }
 
-    const parsed = parseOrderInfo(ocrResult, type)
+    if (!ocrResult.words_result || ocrResult.words_result.length === 0) {
+      throw new Error('未识别到文字内容')
+    }
+
+    // 5. 解析订单
+    const lines = ocrResult.words_result.map(w => w.words)
+    const allText = lines.join('\n')
+    
+    // 检测平台
+    const platform = detectPlatform(lines, allText)
+    console.log('检测到平台:', platform)
+    
+    // 根据平台选择解析器
+    let parsed
+    switch (platform) {
+      case 'taobao':
+        parsed = parseTaobaoOrder(lines, allText)
+        break
+      case 'jd':
+        parsed = parseJDOrder(lines, allText)
+        break
+      case 'pdd':
+        parsed = parsePDDOrder(lines, allText)
+        break
+      default:
+        parsed = parseGenericOrder(lines, allText)
+    }
+    
+    // 智能分类
     const categoryId = guessCategory(parsed.productName)
 
+    // 6. 返回结果
     return {
       success: true,
       data: {
         ...parsed,
         categoryId,
-        ocrResult // 返回原始结果供调试
+        // 调试信息
+        _debug: {
+          platform,
+          lineCount: lines.length,
+          firstLines: lines.slice(0, 5)
+        }
       }
     }
 
