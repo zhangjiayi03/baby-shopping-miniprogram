@@ -7,8 +7,8 @@ cloud.init({
 
 // 百度 OCR 配置
 const BAIDU_OCR_CONFIG = {
-  apiKey: process.env.BAIDU_OCR_API_KEY || '',
-  secretKey: process.env.BAIDU_OCR_SECRET_KEY || '',
+  apiKey: 'aWb1o2tbEqXuH2TN41iUuhIt',
+  secretKey: 'TLwVw2OCU5JoQtjS56HI5OcGVgihlfqH',
   accessToken: null,
   tokenExpire: 0
 }
