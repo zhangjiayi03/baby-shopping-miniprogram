@@ -1,4 +1,4 @@
-// 云函数入口文件 - 百度 OCR 识别（简化版）
+// 云函数入口文件 - 百度 OCR 识别（支持云存储 URL）
 const cloud = require('wx-server-sdk')
 
 cloud.init({
@@ -48,91 +48,102 @@ async function getBaiduAccessToken() {
     return data.access_token
   }
 
-  throw new Error(data.error_description || '获取 Token 失败: ' + JSON.stringify(data))
+  console.error('Token 获取失败:', data)
+  throw new Error(data.error_description || '获取 Access Token 失败')
 }
 
 /**
- * 百度通用文字识别（高精度版）
+ * 百度 OCR 识别
  */
 async function baiduOCR(imageBase64, accessToken) {
-  console.log('开始调用百度 OCR API...')
-  
-  const params = new URLSearchParams()
-  params.append('image', imageBase64)
-  params.append('detect_direction', 'true')
-  params.append('paragraph', 'false')
-
   const url = `https://aip.baidubce.com/rest/2.0/ocr/v1/accurate_basic?access_token=${accessToken}`
+  
+  console.log('调用百度 OCR API...')
   
   const res = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded'
     },
-    body: params.toString()
+    body: `image=${encodeURIComponent(imageBase64)}&detect_direction=true`
   })
 
-  const data = await res.json()
-  console.log('百度 OCR 响应:', JSON.stringify(data).substring(0, 500))
+  const result = await res.json()
+  console.log('百度 OCR 响应:', JSON.stringify(result).substring(0, 500))
   
-  return data
+  return result
+}
+
+/**
+ * 从云存储下载图片并转为 base64
+ */
+async function downloadImageFromCloudStorage(imgUrl) {
+  console.log('从云存储下载图片:', imgUrl)
+  
+  // 提取文件 ID（格式：cloud://xxx/xxx）
+  const fileId = imgUrl
+  
+  try {
+    // 使用云开发 API 下载文件
+    const result = await cloud.downloadFile({
+      fileID: fileId
+    })
+    
+    if (result.fileContent) {
+      // 转为 base64
+      const base64 = result.fileContent.toString('base64')
+      console.log('图片下载成功，base64 长度:', base64.length)
+      return base64
+    } else {
+      throw new Error('下载文件内容为空')
+    }
+  } catch (error) {
+    console.error('下载图片失败:', error)
+    throw error
+  }
 }
 
 /**
  * 解析京东订单
  */
 function parseJDOrder(texts) {
-  console.log('解析京东订单，文本行数:', texts.length)
-  
   let productName = ''
   let price = 0
   let quantity = 1
 
   // 排除关键词
-  const excludeKeywords = ['售后', '服务', '完成', '感谢', '评价', '客服', '物流', '配送', '订单', '编号', '时间', '地址', '电话', '收货', '京东快递', '京东自营', '平台']
-  
-  // 商品关键词
-  const productKeywords = ['京东超市', '京东', '贝亲', '婴儿', '纸尿裤', '奶粉', '玩具', 'ml', 'g', 'kg', '片', '装', '盒', '瓶', '袋', '套装']
+  const excludeKeywords = ['售后', '服务', '完成', '感谢', '支持', '订单', 
+                           '时间', '地址', '电话', '收货', '支付', '配送',
+                           '查看', '评价', '申请', '客服', '详情', '更多']
 
-  for (let i = 0; i < texts.length; i++) {
-    const text = texts[i].trim()
-    
-    // 排除无关行
-    if (excludeKeywords.some(k => text.includes(k))) continue
-    
-    // 提取价格（找 ¥ 或 数字.数字 格式）
-    const priceMatch = text.match(/¥?\s*(\d+\.?\d*)/)
-    if (priceMatch && !price) {
-      const possiblePrice = parseFloat(priceMatch[1])
-      if (possiblePrice > 1 && possiblePrice < 10000) {
-        price = possiblePrice
-      }
+  // 优先查找"京东超市"开头的商品
+  for (const text of texts) {
+    if (text.includes('京东超市')) {
+      productName = text.trim()
+      break
     }
+  }
 
-    // 提取商品名（优先找包含商品关键词的行）
-    if (productKeywords.some(k => text.includes(k))) {
-      if (text.length > 5 && text.length < 100) {
-        // 清理商品名
-        let cleanName = text
-          .replace(/京东超市/g, '')
-          .replace(/京东/g, '')
-          .replace(/自营/g, '')
-          .trim()
-        
-        if (cleanName.length > 3) {
-          productName = cleanName
-        }
+  // 如果没找到，查找包含商品规格的行
+  if (!productName) {
+    for (const text of texts) {
+      const hasSpec = /(\d+ml|\d+g|\d+片|\d+装|婴儿|儿童|宝宝|奶粉|尿不湿)/i.test(text)
+      const shouldExclude = excludeKeywords.some(kw => text.includes(kw))
+      
+      if (hasSpec && !shouldExclude && text.length > 5 && text.length < 100) {
+        productName = text.trim()
+        break
       }
     }
   }
 
-  // 如果没找到商品名，取第一行有意义的文本
-  if (!productName) {
-    for (const text of texts) {
-      const cleanText = text.trim()
-      if (cleanText.length > 5 && cleanText.length < 50 && !excludeKeywords.some(k => cleanText.includes(k))) {
-        productName = cleanText
-        break
+  // 提取价格
+  for (const text of texts) {
+    const priceMatch = text.match(/¥?\s*(\d+\.\d{2})/)
+    if (priceMatch) {
+      const possiblePrice = parseFloat(priceMatch[1])
+      if (possiblePrice > 1 && possiblePrice < 10000) {
+        price = possiblePrice
       }
     }
   }
@@ -198,15 +209,26 @@ function parsePDDOrder(texts) {
  * 云函数入口函数
  */
 exports.main = async (event, context) => {
-  console.log('OCR 云函数被调用，参数:', JSON.stringify(event).substring(0, 200))
+  console.log('OCR 云函数被调用，参数:', JSON.stringify(event).substring(0, 500))
 
   try {
-    const { image } = event
+    const { image, imgUrl } = event
     
-    if (!image) {
+    let imageBase64 = null
+    
+    // 支持两种方式：直接传 base64 或传云存储 URL
+    if (image) {
+      // 直接传 base64
+      imageBase64 = image
+      console.log('使用直接传入的 base64 图片')
+    } else if (imgUrl) {
+      // 从云存储下载
+      console.log('从云存储下载图片:', imgUrl)
+      imageBase64 = await downloadImageFromCloudStorage(imgUrl)
+    } else {
       return {
         success: false,
-        error: '请提供图片数据'
+        error: '请提供图片数据 (image 或 imgUrl)'
       }
     }
 
@@ -215,7 +237,7 @@ exports.main = async (event, context) => {
     console.log('Access Token 获取成功')
 
     // 调用 OCR
-    const result = await baiduOCR(image, accessToken)
+    const result = await baiduOCR(imageBase64, accessToken)
 
     if (result.error_code) {
       console.error('百度 OCR 错误:', result.error_msg)
