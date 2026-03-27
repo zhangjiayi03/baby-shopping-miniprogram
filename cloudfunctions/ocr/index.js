@@ -222,34 +222,86 @@ function parseJDOrder(lines, allText) {
     rawText: allText
   }
   
-  // 京东订单特征：
-  // - 商品名前面通常有商品图
-  // - "总额" 或 "实付款"
-  // - 订单编号：JD开头
+  console.log('京东订单解析开始，总行数:', lines.length)
+  console.log('前10行:', lines.slice(0, 10))
+  
+  // 京东订单详情页特征：
+  // - 商品名通常是较长的描述行，包含品牌、规格等
+  // - 可能有 "*N件" 表示数量
+  // - 价格通常显示为 "总额 ¥XXX.XX" 或直接 "¥XXX.XX"
+  // - 订单编号格式：京东订单号
+  
+  // 京东订单中需要排除的关键词（非商品名）
+  const excludeKeywords = [
+    '订单编号', '下单时间', '付款时间', '发货时间', '收货时间',
+    '收货地址', '收货人', '联系电话', '买家留言', '发票信息',
+    '订单详情', '商品详情', '订单状态', '售后服务',
+    '总额', '实付款', '优惠', '运费', '京豆', '余额',
+    '¥', '￥', '京东', 'JD', 'jd.com',
+    '待收货', '已完成', '已发货', '待发货', '待付款',
+    '申请售后', '再次购买', '分享订单', '联系客服',
+    '快递单号', '物流信息', '配送', '快递员'
+  ]
   
   // 1. 找商品名
+  // 策略：找到最长的、不含排除关键词的行
+  const candidateLines = []
+  
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]
-    if (line.includes('商品') && i + 1 < lines.length) {
-      const nextLine = lines[i + 1].trim()
-      if (nextLine.length > 2 && !nextLine.includes('¥')) {
-        result.productName = nextLine.substring(0, 50)
-        break
-      }
+    const line = lines[i].trim()
+    
+    // 跳过太短或太长的行
+    if (line.length < 5 || line.length > 100) continue
+    
+    // 跳过包含排除关键词的行
+    if (excludeKeywords.some(kw => line.includes(kw))) continue
+    
+    // 跳过纯数字行
+    if (/^\d+$/.test(line)) continue
+    
+    // 跳过纯日期时间行
+    if (/^\d{4}[-/年]\d{1,2}[-/月]\d{1,2}日?/.test(line) && line.length < 20) continue
+    
+    // 这是一个可能的商品名
+    candidateLines.push({
+      line,
+      index: i,
+      length: line.length
+    })
+  }
+  
+  console.log('候选商品名行数:', candidateLines.length)
+  candidateLines.slice(0, 3).forEach(c => console.log('  候选:', c.line.substring(0, 30) + '...'))
+  
+  // 选择最长的候选行作为商品名
+  if (candidateLines.length > 0) {
+    candidateLines.sort((a, b) => b.length - a.length)
+    result.productName = candidateLines[0].line.substring(0, 60)
+  }
+  
+  // 2. 提取数量（从商品名中提取 "*N件" 或 "×N"）
+  const qtyPatterns = [
+    /\*\s*(\d+)\s*件/,
+    /×\s*(\d+)/,
+    /x\s*(\d+)/i,
+    /(\d+)\s*件/
+  ]
+  
+  for (const pattern of qtyPatterns) {
+    const match = result.productName.match(pattern)
+    if (match) {
+      result.quantity = parseInt(match[1])
+      // 从商品名中移除数量信息
+      result.productName = result.productName.replace(pattern, '').trim()
+      break
     }
   }
   
-  // 备选：找长文本行
-  if (!result.productName) {
-    const longLines = lines.filter(l => l.length > 10 && !l.includes('¥') && !l.includes('订单'))
-    if (longLines.length > 0) {
-      result.productName = longLines[0].substring(0, 50)
-    }
-  }
-  
-  // 2. 找价格
+  // 3. 找价格
+  // 京东价格特征：总额 ¥XXX.XX 或 ¥XXX.XX
   const pricePatterns = [
-    /(?:总额|实付款|实付|合计)[:\s]*[¥￥]?\s*(\d+\.?\d*)/,
+    /总额\s*[¥￥]?\s*(\d+\.?\d*)/,
+    /实付款\s*[¥￥]?\s*(\d+\.?\d*)/,
     /[¥￥]\s*(\d+\.\d{2})/
   ]
   
@@ -262,11 +314,13 @@ function parseJDOrder(lines, allText) {
     }
   }
   
-  // 3. 找时间
+  // 4. 找订单时间
   const timeMatch = allText.match(/(\d{4}[-/]\d{1,2}[-/]\d{1,2})/)
   if (timeMatch) {
-    result.orderTime = timeMatch[1]
+    result.orderTime = timeMatch[1].replace(/[/]/g, '-')
   }
+  
+  console.log('京东解析结果:', result)
   
   return result
 }
