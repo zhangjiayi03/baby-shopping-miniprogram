@@ -1,0 +1,185 @@
+<!--pages/record/record.wxml-->
+<view class="container">
+  <!-- 切换标签 -->
+  <view class="tab-switch">
+    <view class="tab-btn {{activeTab === 'scan' ? 'active' : ''}}" bindtap="switchTab" data-tab="scan">
+      📸 截图识别
+    </view>
+    <view class="tab-btn {{activeTab === 'manual' ? 'active' : ''}}" bindtap="switchTab" data-tab="manual">
+      📝 手动添加
+    </view>
+  </view>
+
+  <!-- 截图识别 -->
+  <view wx:if="{{activeTab === 'scan'}}">
+    <!-- 平台选择 -->
+    <view class="platform-section">
+      <view class="platform-label">选择平台（可选）</view>
+      <scroll-view class="platform-scroll" scroll-x>
+        <view class="platform-tags">
+          <view 
+            class="platform-tag {{selectedPlatform === item.id ? 'active' : ''}}" 
+            wx:for="{{platforms}}" 
+            wx:key="id"
+            bindtap="selectPlatform"
+            data-id="{{item.id}}"
+          >
+            {{item.name}}
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+
+    <!-- 上传区域 -->
+    <view class="upload-area" bindtap="chooseImage">
+      <view wx:if="{{!tempImagePath}}" class="upload-placeholder">
+        <view class="upload-icon">📷</view>
+        <view class="upload-text">点击上传订单截图</view>
+        <view class="upload-hint">支持淘宝、京东、拼多多等平台</view>
+      </view>
+      <image wx:else class="preview-image" src="{{tempImagePath}}" mode="aspectFit" />
+    </view>
+
+    <!-- 小技巧 -->
+    <view class="tips-card">
+      <view class="tips-title">💡 小技巧</view>
+      <view class="tips-list">
+        <view class="tip-item">• 在订单详情页截图，识别更准确</view>
+        <view class="tip-item">• 包含商品名、价格、时间即可</view>
+        <view class="tip-item">• 敏感信息会自动忽略</view>
+      </view>
+    </view>
+
+    <!-- 识别结果 -->
+    <view wx:if="{{recognizeResult}}" class="result-section">
+      <view class="success-badge">✅ 识别成功</view>
+      
+      <view class="result-card">
+        <view class="result-title">识别结果</view>
+        <view class="result-row">
+          <text class="result-label">商品名称</text>
+          <text class="result-value">{{recognizeResult.productName}}</text>
+        </view>
+        <view class="result-row">
+          <text class="result-label">总金额</text>
+          <text class="result-value price">¥{{recognizeResult.price}}</text>
+        </view>
+        <view class="result-row">
+          <text class="result-label">平台</text>
+          <text class="result-value">{{recognizeResult.platformName}}</text>
+        </view>
+        <view class="result-row">
+          <text class="result-label">下单时间</text>
+          <text class="result-value">{{recognizeResult.orderTime}}</text>
+        </view>
+      </view>
+
+      <!-- AI 分类 -->
+      <view class="ai-category" bindtap="showCategoryPicker">
+        <view class="ai-title">🤖 AI 智能分类</view>
+        <view class="ai-result">
+          <view class="ai-icon">{{recognizeResult.categoryIcon}}</view>
+          <view class="ai-info">
+            <view class="ai-text">{{recognizeResult.categoryName}}</view>
+            <view class="ai-sub">点击修改分类 ›</view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 宝宝选择 -->
+      <view class="baby-select">
+        <view class="select-label">宝宝档案（可选）</view>
+        <picker bindchange="onBabyChange" value="{{babyIndex}}" range="{{babies}}" range-key="name">
+          <view class="select-value">
+            <text>{{babies[babyIndex].name}}</text>
+            <text class="arrow">▼</text>
+          </view>
+        </picker>
+      </view>
+
+      <!-- 确认按钮 -->
+      <button class="confirm-btn" bindtap="confirmRecord">✓ 确认保存</button>
+    </view>
+  </view>
+
+  <!-- 手动添加 -->
+  <view wx:else class="manual-form">
+    <view class="form-card">
+      <view class="form-item">
+        <text class="form-label required">商品名称</text>
+        <input class="form-input" placeholder="请输入商品名称" value="{{form.productName}}" bindinput="onInput" data-field="productName" />
+      </view>
+      
+      <view class="form-item">
+        <text class="form-label required">金额</text>
+        <input class="form-input" type="digit" placeholder="0.00" value="{{form.price}}" bindinput="onInput" data-field="price" />
+      </view>
+
+      <view class="form-item">
+        <text class="form-label">分类</text>
+        <picker bindchange="onCategoryChange" value="{{categoryIndex}}" range="{{categories}}" range-key="name">
+          <view class="form-picker">
+            <text>{{categories[categoryIndex].name}}</text>
+            <text class="arrow">▼</text>
+          </view>
+        </picker>
+      </view>
+
+      <view class="form-item">
+        <text class="form-label">平台</text>
+        <picker bindchange="onPlatformChange" value="{{platformIndex}}" range="{{platforms}}" range-key="name">
+          <view class="form-picker">
+            <text>{{platforms[platformIndex].name}}</text>
+            <text class="arrow">▼</text>
+          </view>
+        </picker>
+      </view>
+
+      <view class="form-item">
+        <text class="form-label">购买日期</text>
+        <picker mode="date" value="{{form.date}}" bindchange="onDateChange">
+          <view class="form-picker">
+            <text>{{form.date}}</text>
+            <text class="arrow">▼</text>
+          </view>
+        </picker>
+      </view>
+
+      <view class="form-item">
+        <text class="form-label">宝宝档案</text>
+        <picker bindchange="onBabyChange" value="{{babyIndex}}" range="{{babies}}" range-key="name">
+          <view class="form-picker">
+            <text>{{babies[babyIndex].name}}</text>
+            <text class="arrow">▼</text>
+          </view>
+        </picker>
+      </view>
+
+      <view class="form-item">
+        <text class="form-label">备注</text>
+        <textarea class="form-textarea" placeholder="添加备注（可选）" value="{{form.remark}}" bindinput="onInput" data-field="remark" />
+      </view>
+    </view>
+
+    <button class="submit-btn" bindtap="submitForm">保存记录</button>
+  </view>
+
+  <!-- 分类选择弹窗 -->
+  <view class="popup-mask" wx:if="{{showCategoryPopup}}" bindtap="closeCategoryPicker">
+    <view class="popup-content" catchtap="">
+      <view class="popup-title">选择分类</view>
+      <view class="category-grid">
+        <view 
+          class="category-item {{selectedCategory === item.id ? 'active' : ''}}" 
+          wx:for="{{categories}}" 
+          wx:key="id"
+          bindtap="selectCategory"
+          data-id="{{item.id}}"
+        >
+          <view class="category-icon">{{item.icon}}</view>
+          <view class="category-name">{{item.name}}</view>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

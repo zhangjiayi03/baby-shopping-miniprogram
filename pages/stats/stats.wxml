@@ -1,0 +1,83 @@
+<!--pages/stats/stats.wxml-->
+<view class="container">
+  <!-- 时间筛选 -->
+  <view class="period-tabs">
+    <view 
+      class="tab-item {{period === item.id ? 'active' : ''}}" 
+      wx:for="{{periods}}" 
+      wx:key="id"
+      bindtap="changePeriod"
+      data-period="{{item.id}}"
+    >
+      {{item.name}}
+    </view>
+  </view>
+
+  <!-- 概览卡片 -->
+  <view class="overview-card">
+    <view class="overview-main">
+      <view class="overview-label">总花费</view>
+      <view class="overview-amount">¥{{totalAmount}}</view>
+      <view class="overview-count">共 {{totalCount}} 笔记录</view>
+    </view>
+    <view class="overview-stats">
+      <view class="stat-item">
+        <view class="stat-value">¥{{avgDaily}}</view>
+        <view class="stat-label">日均花费</view>
+      </view>
+      <view class="stat-item">
+        <view class="stat-value">{{categoryStats.length}}</view>
+        <view class="stat-label">消费品类</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 消费趋势 -->
+  <view class="section">
+    <view class="section-title">消费趋势（近7天）</view>
+    <view class="trend-chart">
+      <view class="trend-bars">
+        <view class="trend-bar" wx:for="{{trendData}}" wx:key="date">
+          <view class="bar-fill" style="height: {{item.amount > 0 ? Math.min(item.amount / 500 * 100, 100) : 0}}%"></view>
+        </view>
+      </view>
+      <view class="trend-labels">
+        <view class="trend-label" wx:for="{{trendData}}" wx:key="date">{{item.date}}</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 分类占比 -->
+  <view class="section">
+    <view class="section-title">分类占比</view>
+    
+    <view class="category-list" wx:if="{{categoryStats.length > 0}}">
+      <view class="category-item" wx:for="{{categoryStats}}" wx:key="id">
+        <view class="category-icon" style="background: {{item.color}}20">{{item.icon}}</view>
+        <view class="category-info">
+          <view class="category-header">
+            <text class="category-name">{{item.name}}</text>
+            <text class="category-amount">¥{{item.amount}}</text>
+          </view>
+          <view class="category-progress">
+            <view class="progress-bar">
+              <view class="progress-fill" style="width: {{item.percent}}%; background: {{item.color}}"></view>
+            </view>
+            <text class="progress-text">{{item.percent}}% · {{item.count}}笔</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="empty-state" wx:else>
+      <view class="empty-icon">📊</view>
+      <view class="empty-text">暂无数据</view>
+    </view>
+  </view>
+
+  <!-- 操作按钮 -->
+  <view class="action-bar">
+    <button class="action-btn primary" bindtap="goToRecord">开始记账</button>
+    <button class="action-btn secondary" bindtap="exportData">导出数据</button>
+  </view>
+</view>

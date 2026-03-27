@@ -1,0 +1,110 @@
+<!--pages/index/index.wxml-->
+<view class="container">
+  <!-- 头部卡片 -->
+  <view class="header-card">
+    <view class="header-bg"></view>
+    <view class="header-content">
+      <view class="header-title">
+        <text class="title-text">宝宝购物记录</text>
+        <view class="header-actions">
+          <view class="action-btn" bindtap="showNotifications">
+            <text class="action-icon">🔔</text>
+            <view class="badge" wx:if="{{false}}"></view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 统计卡片 -->
+      <view class="stats-cards">
+        <view class="stat-card">
+          <view class="stat-label">今日花费</view>
+          <view class="stat-value">¥{{todayTotal}}</view>
+          <view class="stat-compare {{todayCompare > 0 ? 'up' : todayCompare < 0 ? 'down' : ''}}">
+            <text wx:if="{{todayCompare !== 0}}">{{todayCompare > 0 ? '↑' : '↓'}}{{todayCompare > 0 ? todayCompare : -todayCompare}}%</text>
+            <text wx:else>持平</text>
+          </view>
+        </view>
+        <view class="stat-card">
+          <view class="stat-label">本月花费</view>
+          <view class="stat-value">¥{{monthTotal}}</view>
+          <view class="budget-progress">
+            <view class="progress-bar">
+              <view class="progress-fill {{monthProgress > 80 ? 'danger' : ''}}" style="width: {{monthProgress}}%"></view>
+            </view>
+            <text class="progress-text">预算¥{{budget}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 快捷入口 -->
+  <view class="quick-actions">
+    <view class="action-item" bindtap="goToRecord">
+      <view class="action-icon-wrap">
+        <text class="action-emoji">📸</text>
+      </view>
+      <text class="action-text">截图识别</text>
+    </view>
+    <view class="action-item" bindtap="goToRecord">
+      <view class="action-icon-wrap">
+        <text class="action-emoji">✏️</text>
+      </view>
+      <text class="action-text">手动记账</text>
+    </view>
+    <view class="action-item" bindtap="goToStats">
+      <view class="action-icon-wrap">
+        <text class="action-emoji">📊</text>
+      </view>
+      <text class="action-text">统计分析</text>
+    </view>
+    <view class="action-item" bindtap="goToMine">
+      <view class="action-icon-wrap">
+        <text class="action-emoji">💰</text>
+      </view>
+      <text class="action-text">预算管理</text>
+    </view>
+  </view>
+
+  <!-- 最近记录 -->
+  <view class="section">
+    <view class="section-header">
+      <text class="section-title">最近记录</text>
+      <text class="section-more" bindtap="goToRecord">查看全部 ›</text>
+    </view>
+
+    <view class="record-list" wx:if="{{recentRecords.length > 0}}">
+      <view 
+        class="record-item" 
+        wx:for="{{recentRecords}}" 
+        wx:key="id"
+        bindtap="viewRecord"
+        data-id="{{item.id}}"
+      >
+        <view class="record-icon">{{item.categoryIcon}}</view>
+        <view class="record-info">
+          <view class="record-name">{{item.productName}}</view>
+          <view class="record-meta">
+            <text class="record-category">{{item.categoryName}}</text>
+            <text class="record-divider">·</text>
+            <text class="record-platform">{{item.platform}}</text>
+            <text class="record-divider">·</text>
+            <text class="record-time">{{item.timeText}}</text>
+          </view>
+        </view>
+        <view class="record-price">¥{{item.price}}</view>
+      </view>
+    </view>
+
+    <view class="empty-state" wx:else>
+      <view class="empty-icon">📝</view>
+      <view class="empty-text">还没有记录</view>
+      <button class="empty-btn" bindtap="goToRecord">开始记账</button>
+    </view>
+  </view>
+
+  <!-- 浮动记账按钮 -->
+  <view class="fab-btn" bindtap="goToRecord">
+    <text class="fab-icon">+</text>
+  </view>
+</view>

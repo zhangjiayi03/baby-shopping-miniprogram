@@ -1,0 +1,52 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/record/record",
+    "pages/stats/stats",
+    "pages/baby/baby",
+    "pages/mine/mine"
+  ],
+  "window": {
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#FF6B6B",
+    "navigationBarTitleText": "宝宝购物记录",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#F5F5F5"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#FF6B6B",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页",
+        "iconPath": "assets/icons/home.png",
+        "selectedIconPath": "assets/icons/home-active.png"
+      },
+      {
+        "pagePath": "pages/record/record",
+        "text": "记账",
+        "iconPath": "assets/icons/record.png",
+        "selectedIconPath": "assets/icons/record-active.png"
+      },
+      {
+        "pagePath": "pages/stats/stats",
+        "text": "统计",
+        "iconPath": "assets/icons/stats.png",
+        "selectedIconPath": "assets/icons/stats-active.png"
+      },
+      {
+        "pagePath": "pages/baby/baby",
+        "text": "宝宝",
+        "iconPath": "assets/icons/baby.png",
+        "selectedIconPath": "assets/icons/baby-active.png"
+      }
+    ]
+  },
+  "cloudfunctionRoot": "cloudfunctions/",
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

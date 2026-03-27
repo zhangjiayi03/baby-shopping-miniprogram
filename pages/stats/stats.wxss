@@ -1,0 +1,263 @@
+/* pages/stats/stats.wxss */
+.container {
+  min-height: 100vh;
+  background: #F5F5F5;
+  padding-bottom: 150rpx;
+}
+
+/* 时间筛选 */
+.period-tabs {
+  display: flex;
+  background: #FFFFFF;
+  padding: 20rpx 30rpx;
+  gap: 20rpx;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.tab-item {
+  flex: 1;
+  text-align: center;
+  padding: 16rpx 0;
+  font-size: 28rpx;
+  color: #666666;
+  background: #F5F5F5;
+  border-radius: 40rpx;
+}
+
+.tab-item.active {
+  background: linear-gradient(135deg, #FF6B6B 0%, #FF8E8E 100%);
+  color: #FFFFFF;
+}
+
+/* 概览卡片 */
+.overview-card {
+  margin: 30rpx;
+  background: linear-gradient(135deg, #FF6B6B 0%, #FF8E8E 100%);
+  border-radius: 24rpx;
+  padding: 40rpx;
+  color: #FFFFFF;
+}
+
+.overview-main {
+  text-align: center;
+  padding-bottom: 30rpx;
+  border-bottom: 1rpx solid rgba(255, 255, 255, 0.2);
+  margin-bottom: 30rpx;
+}
+
+.overview-label {
+  font-size: 26rpx;
+  opacity: 0.8;
+  margin-bottom: 10rpx;
+}
+
+.overview-amount {
+  font-size: 56rpx;
+  font-weight: 700;
+  margin-bottom: 10rpx;
+}
+
+.overview-count {
+  font-size: 24rpx;
+  opacity: 0.8;
+}
+
+.overview-stats {
+  display: flex;
+  justify-content: space-around;
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 32rpx;
+  font-weight: 600;
+  margin-bottom: 6rpx;
+}
+
+.stat-label {
+  font-size: 22rpx;
+  opacity: 0.8;
+}
+
+/* 区块 */
+.section {
+  margin: 30rpx;
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  padding: 30rpx;
+}
+
+.section-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333333;
+  margin-bottom: 30rpx;
+}
+
+/* 趋势图 */
+.trend-chart {
+  height: 200rpx;
+  display: flex;
+  flex-direction: column;
+}
+
+.trend-bars {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: 20rpx;
+  padding: 0 10rpx;
+}
+
+.trend-bar {
+  flex: 1;
+  height: 100%;
+  background: #F5F5F5;
+  border-radius: 8rpx 8rpx 0 0;
+  display: flex;
+  align-items: flex-end;
+}
+
+.bar-fill {
+  width: 100%;
+  background: linear-gradient(180deg, #FF6B6B 0%, #FF8E8E 100%);
+  border-radius: 8rpx 8rpx 0 0;
+  transition: height 0.3s ease;
+  min-height: 4rpx;
+}
+
+.trend-labels {
+  display: flex;
+  gap: 20rpx;
+  padding-top: 10rpx;
+}
+
+.trend-label {
+  flex: 1;
+  text-align: center;
+  font-size: 22rpx;
+  color: #999999;
+}
+
+/* 分类列表 */
+.category-list {
+  display: flex;
+  flex-direction: column;
+  gap: 25rpx;
+}
+
+.category-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 20rpx;
+}
+
+.category-icon {
+  width: 70rpx;
+  height: 70rpx;
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32rpx;
+}
+
+.category-info {
+  flex: 1;
+}
+
+.category-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10rpx;
+}
+
+.category-name {
+  font-size: 28rpx;
+  color: #333333;
+}
+
+.category-amount {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #333333;
+}
+
+.category-progress {
+  display: flex;
+  align-items: center;
+  gap: 15rpx;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 12rpx;
+  background: #F5F5F5;
+  border-radius: 6rpx;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 6rpx;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 22rpx;
+  color: #999999;
+  white-space: nowrap;
+}
+
+/* 空状态 */
+.empty-state {
+  text-align: center;
+  padding: 60rpx 0;
+}
+
+.empty-icon {
+  font-size: 60rpx;
+  margin-bottom: 20rpx;
+}
+
+.empty-text {
+  font-size: 28rpx;
+  color: #999999;
+}
+
+/* 操作栏 */
+.action-bar {
+  position: fixed;
+  bottom: 120rpx;
+  left: 30rpx;
+  right: 30rpx;
+  display: flex;
+  gap: 20rpx;
+}
+
+.action-btn {
+  flex: 1;
+  height: 88rpx;
+  border-radius: 44rpx;
+  font-size: 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+}
+
+.action-btn.primary {
+  background: linear-gradient(135deg, #FF6B6B 0%, #FF8E8E 100%);
+  color: #FFFFFF;
+}
+
+.action-btn.secondary {
+  background: #FFFFFF;
+  color: #666666;
+  border: 2rpx solid #E5E5E5;
+}

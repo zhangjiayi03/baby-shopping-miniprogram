@@ -1,0 +1,83 @@
+<!--pages/mine/mine.wxml-->
+<view class="container">
+  <!-- 用户卡片 -->
+  <view class="user-card">
+    <view class="user-avatar">
+      <text class="avatar-emoji">👶</text>
+    </view>
+    <view class="user-info">
+      <text class="user-name">宝宝购物记录</text>
+      <text class="user-desc">精打细算，给宝宝最好的</text>
+    </view>
+  </view>
+
+  <!-- 统计卡片 -->
+  <view class="stats-card">
+    <view class="stat-row">
+      <view class="stat-box">
+        <text class="stat-value">{{stats.totalRecords}}</text>
+        <text class="stat-label">记账笔数</text>
+      </view>
+      <view class="stat-divider"></view>
+      <view class="stat-box">
+        <text class="stat-value">¥{{stats.totalAmount}}</text>
+        <text class="stat-label">累计花费</text>
+      </view>
+      <view class="stat-divider"></view>
+      <view class="stat-box">
+        <text class="stat-value">¥{{stats.avgDaily}}</text>
+        <text class="stat-label">日均花费</text>
+      </view>
+    </view>
+    <view class="stat-highlight" wx:if="{{stats.maxAmount > 0}}">
+      <text class="highlight-label">最大单笔</text>
+      <text class="highlight-value">¥{{stats.maxAmount}}</text>
+      <text class="highlight-product">{{stats.maxProduct}}</text>
+    </view>
+  </view>
+
+  <!-- 预算卡片 -->
+  <view class="budget-card">
+    <view class="budget-header">
+      <text class="budget-title">本月预算</text>
+      <text class="budget-edit" bindtap="showBudgetModal">修改</text>
+    </view>
+    <view class="budget-amount">¥{{budget}}</view>
+  </view>
+
+  <!-- 菜单列表 -->
+  <view class="menu-section">
+    <view class="menu-title">设置</view>
+    <view class="menu-list">
+      <view 
+        class="menu-item" 
+        wx:for="{{menus}}" 
+        wx:key="id"
+        bindtap="onMenuClick"
+        data-id="{{item.id}}"
+      >
+        <view class="menu-left">
+          <text class="menu-icon">{{item.icon}}</text>
+          <view class="menu-text">
+            <text class="menu-title-text">{{item.title}}</text>
+            <text class="menu-desc">{{item.desc}}</text>
+          </view>
+        </view>
+        <text class="menu-arrow">›</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 危险操作 -->
+  <view class="danger-section">
+    <view class="danger-btn" bindtap="clearData">
+      <text class="danger-icon">🗑️</text>
+      <text class="danger-text">清空所有数据</text>
+    </view>
+  </view>
+
+  <!-- 版本信息 -->
+  <view class="version-info">
+    <text>Baby Shopping v1.0.0</text>
+  </view>
+</view>

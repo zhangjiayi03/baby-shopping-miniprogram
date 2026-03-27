@@ -1,0 +1,121 @@
+<!--pages/baby/baby.wxml-->
+<view class="container">
+  <!-- 页面标题 -->
+  <view class="page-header">
+    <text class="page-title">宝宝档案</text>
+    <view class="add-btn" bindtap="showAddBaby">
+      <text class="add-icon">+</text>
+    </view>
+  </view>
+
+  <!-- 宝宝列表 -->
+  <view class="baby-list" wx:if="{{babies.length > 0}}">
+    <view 
+      class="baby-card" 
+      wx:for="{{babies}}" 
+      wx:key="id"
+    >
+      <view class="baby-header" bindtap="editBaby" data-id="{{item.id}}">
+        <view class="baby-avatar">
+          <image wx:if="{{item.avatar}}" src="{{item.avatar}}" mode="aspectFill" class="avatar-img" />
+          <text wx:else class="avatar-default">{{item.gender === 'male' ? '👦' : item.gender === 'female' ? '👧' : '👶'}}</text>
+        </view>
+        <view class="baby-info">
+          <view class="baby-name">{{item.name}}</view>
+          <view class="baby-meta">
+            <text class="baby-age">{{item.ageText}}</text>
+            <text class="meta-divider">·</text>
+            <text class="baby-gender">{{item.gender === 'male' ? '男宝' : item.gender === 'female' ? '女宝' : ''}}</text>
+          </view>
+        </view>
+        <text class="edit-icon">›</text>
+      </view>
+      
+      <view class="baby-stats">
+        <view class="stat-item">
+          <text class="stat-value">¥{{item.totalAmount}}</text>
+          <text class="stat-label">累计花费</text>
+        </view>
+        <view class="stat-divider"></view>
+        <view class="stat-item">
+          <text class="stat-value">{{item.recordCount}}</text>
+          <text class="stat-label">购物记录</text>
+        </view>
+        <view class="stat-divider"></view>
+        <view class="stat-item action" bindtap="viewRecords" data-id="{{item.id}}">
+          <text class="stat-value">查看</text>
+          <text class="stat-label">详细记录</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:else>
+    <view class="empty-icon">👶</view>
+    <view class="empty-text">还没有添加宝宝</view>
+    <view class="empty-desc">添加宝宝档案，可以分开统计每个宝宝的购物花费</view>
+    <button class="empty-btn" bindtap="showAddBaby">添加宝宝</button>
+  </view>
+
+  <!-- 添加/编辑弹窗 -->
+  <view class="modal-mask" wx:if="{{showAddModal}}" bindtap="closeModal">
+    <view class="modal-content" catchtap="">
+      <view class="modal-header">
+        <text class="modal-title">{{editingBaby ? '编辑宝宝' : '添加宝宝'}}</text>
+        <text class="modal-close" bindtap="closeModal">×</text>
+      </view>
+
+      <view class="modal-body">
+        <!-- 头像 -->
+        <view class="avatar-upload" bindtap="chooseAvatar">
+          <image wx:if="{{form.avatar}}" src="{{form.avatar}}" mode="aspectFill" class="upload-preview" />
+          <view wx:else class="upload-placeholder">
+            <text class="upload-icon">📷</text>
+            <text class="upload-text">添加头像</text>
+          </view>
+        </view>
+
+        <!-- 名字 -->
+        <view class="form-item">
+          <text class="form-label">宝宝名字</text>
+          <input class="form-input" placeholder="给宝宝起个名字" value="{{form.name}}" bindinput="onInputChange" data-field="name" />
+        </view>
+
+        <!-- 出生日期 -->
+        <view class="form-item">
+          <text class="form-label">出生日期</text>
+          <picker mode="date" value="{{form.birthDate}}" bindchange="onDateChange">
+            <view class="form-picker">
+              <text>{{form.birthDate || '请选择'}}</text>
+              <text class="picker-arrow">▼</text>
+            </view>
+          </picker>
+        </view>
+
+        <!-- 性别 -->
+        <view class="form-item">
+          <text class="form-label">性别</text>
+          <view class="gender-options">
+            <view 
+              class="gender-option {{form.gender === item.value ? 'active' : ''}}" 
+              wx:for="{{genderOptions}}" 
+              wx:key="value"
+              bindtap="onGenderChange"
+              data-gender="{{item.value}}"
+            >
+              <text class="gender-icon">{{item.icon}}</text>
+              <text class="gender-label">{{item.label}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view class="modal-footer">
+        <button class="btn-delete" wx:if="{{editingBaby}}" bindtap="deleteBaby">删除</button>
+        <button class="btn-cancel" bindtap="closeModal">取消</button>
+        <button class="btn-confirm" bindtap="saveBaby">保存</button>
+      </view>
+    </view>
+  </view>
+</view>

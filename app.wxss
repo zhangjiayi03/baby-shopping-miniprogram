@@ -1,0 +1,113 @@
+/* app.wxss - 全局样式 */
+
+/* 重置样式 */
+page {
+  background-color: #F5F5F5;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 28rpx;
+  color: #333333;
+  line-height: 1.5;
+}
+
+/* 通用类 */
+.container {
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+/* 卡片 */
+.card {
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  padding: 30rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
+}
+
+/* 按钮 */
+.btn {
+  height: 88rpx;
+  border-radius: 44rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30rpx;
+  font-weight: 500;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #FF6B6B 0%, #FF8E8E 100%);
+  color: #FFFFFF;
+}
+
+.btn-secondary {
+  background: #F5F5F5;
+  color: #666666;
+}
+
+/* 文本 */
+.text-primary {
+  color: #FF6B6B;
+}
+
+.text-success {
+  color: #4ECDC4;
+}
+
+.text-warning {
+  color: #FFD93D;
+}
+
+.text-muted {
+  color: #999999;
+}
+
+/* 间距 */
+.mt-10 { margin-top: 10rpx; }
+.mt-20 { margin-top: 20rpx; }
+.mt-30 { margin-top: 30rpx; }
+.mb-10 { margin-bottom: 10rpx; }
+.mb-20 { margin-bottom: 20rpx; }
+.mb-30 { margin-bottom: 30rpx; }
+.ml-10 { margin-left: 10rpx; }
+.mr-10 { margin-right: 10rpx; }
+.p-20 { padding: 20rpx; }
+.p-30 { padding: 30rpx; }
+
+/* Flex */
+.flex { display: flex; }
+.flex-center { display: flex; align-items: center; justify-content: center; }
+.flex-between { display: flex; justify-content: space-between; align-items: center; }
+.flex-column { display: flex; flex-direction: column; }
+
+/* 隐藏 */
+.hidden { display: none !important; }
+
+/* 加载状态 */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60rpx;
+  color: #999999;
+}
+
+/* 空状态 */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 100rpx 40rpx;
+}
+
+.empty-icon {
+  font-size: 100rpx;
+  margin-bottom: 30rpx;
+}
+
+.empty-text {
+  font-size: 30rpx;
+  color: #999999;
+  margin-bottom: 20rpx;
+}
