@@ -1,0 +1,153 @@
+<!--pages/detail/detail.wxml-->
+<view class="container">
+  <!-- 详情展示模式 -->
+  <view wx:if="{{!isEditing}}" class="detail-view">
+    <!-- 商品图片 -->
+    <view class="image-section" wx:if="{{imageUrl}}">
+      <image 
+        class="order-image" 
+        src="{{imageUrl}}" 
+        mode="aspectFill"
+        bindtap="previewImage"
+      />
+    </view>
+    
+    <!-- 商品信息 -->
+    <view class="info-section">
+      <view class="info-item">
+        <text class="label">商品名称</text>
+        <text class="value">{{productName}}</text>
+      </view>
+      
+      <view class="info-item">
+        <text class="label">价格</text>
+        <text class="value price">¥{{price}}</text>
+      </view>
+      
+      <view class="info-item">
+        <text class="label">数量</text>
+        <text class="value">{{quantity}}</text>
+      </view>
+      
+      <view class="info-item" wx:if="{{unitPrice}}">
+        <text class="label">单价</text>
+        <text class="value">¥{{unitPrice}}</text>
+      </view>
+      
+      <view class="info-item">
+        <text class="label">分类</text>
+        <text class="value">{{categoryName}}</text>
+      </view>
+      
+      <view class="info-item">
+        <text class="label">平台</text>
+        <text class="value">{{platformName}}</text>
+      </view>
+      
+      <view class="info-item">
+        <text class="label">购买日期</text>
+        <text class="value">{{orderTime}}</text>
+      </view>
+      
+      <view class="info-item">
+        <text class="label">创建时间</text>
+        <text class="value">{{createTime}}</text>
+      </view>
+    </view>
+    
+    <!-- 操作按钮 -->
+    <view class="action-section">
+      <button class="btn btn-edit" bindtap="startEdit">编辑</button>
+      <button class="btn btn-delete" bindtap="deleteRecord">删除</button>
+    </view>
+  </view>
+  
+  <!-- 编辑模式 -->
+  <view wx:else class="edit-view">
+    <view class="form-section">
+      <!-- 商品名称 -->
+      <view class="form-item">
+        <text class="form-label">商品名称</text>
+        <input 
+          class="form-input" 
+          placeholder="请输入商品名称" 
+          value="{{editData.productName}}"
+          bindinput="onProductNameInput"
+        />
+      </view>
+      
+      <!-- 价格 -->
+      <view class="form-item">
+        <text class="form-label">价格</text>
+        <input 
+          class="form-input" 
+          type="digit"
+          placeholder="请输入价格" 
+          value="{{editData.price}}"
+          bindinput="onPriceInput"
+        />
+      </view>
+      
+      <!-- 数量 -->
+      <view class="form-item">
+        <text class="form-label">数量</text>
+        <input 
+          class="form-input" 
+          type="number"
+          placeholder="请输入数量" 
+          value="{{editData.quantity}}"
+          bindinput="onQuantityInput"
+        />
+      </view>
+      
+      <!-- 分类 -->
+      <view class="form-item">
+        <text class="form-label">分类</text>
+        <picker 
+          class="form-picker"
+          mode="selector" 
+          range="{{categories}}" 
+          range-key="name"
+          value="{{editData.categoryIndex}}"
+          bindchange="onCategoryChange"
+        >
+          <view class="picker-value">{{categories[editData.categoryIndex].name}}</view>
+        </picker>
+      </view>
+      
+      <!-- 平台 -->
+      <view class="form-item">
+        <text class="form-label">平台</text>
+        <picker 
+          class="form-picker"
+          mode="selector" 
+          range="{{platforms}}" 
+          range-key="name"
+          value="{{editData.platformIndex}}"
+          bindchange="onPlatformChange"
+        >
+          <view class="picker-value">{{platforms[editData.platformIndex].name}}</view>
+        </picker>
+      </view>
+      
+      <!-- 购买日期 -->
+      <view class="form-item">
+        <text class="form-label">购买日期</text>
+        <picker 
+          class="form-picker"
+          mode="date" 
+          value="{{editData.orderTime}}"
+          bindchange="onDateChange"
+        >
+          <view class="picker-value">{{editData.orderTime}}</view>
+        </picker>
+      </view>
+    </view>
+    
+    <!-- 操作按钮 -->
+    <view class="action-section">
+      <button class="btn btn-save" bindtap="saveEdit">保存</button>
+      <button class="btn btn-cancel" bindtap="cancelEdit">取消</button>
+    </view>
+  </view>
+</view>

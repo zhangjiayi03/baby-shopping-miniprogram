@@ -1,0 +1,66 @@
+<!--pages/record/record.wxml-->
+<view class="container">
+  <!-- 上传区域 -->
+  <view class="upload-section">
+    <view class="upload-btn" bindtap="chooseImage">
+      <text class="upload-icon">+</text>
+      <text class="upload-text">上传订单截图</text>
+    </view>
+    
+    <!-- 已上传预览 -->
+    <view class="preview-list" wx:if="{{imageList.length > 0}}">
+      <view class="preview-item" wx:for="{{imageList}}" wx:key="index">
+        <image class="preview-image" src="{{item}}" mode="aspectFill" />
+        <text class="delete-btn" bindtap="removeImage" data-index="{{index}}">✕</text>
+      </view>
+    </view>
+  </view>
+  
+  <!-- 识别结果展示 -->
+  <view class="result-section" wx:if="{{recognitionResult}}">
+    <view class="section-title">识别结果</view>
+    
+    <view class="result-card">
+      <view class="card-header">
+        <text class="card-title">{{recognitionResult.productName}}</text>
+        <text class="edit-btn" bindtap="showEditDialog">编辑</text>
+      </view>
+      
+      <view class="card-body">
+        <view class="info-row">
+          <text class="info-label">价格：</text>
+          <text class="info-value price">¥{{recognitionResult.price}}</text>
+        </view>
+        <view class="info-row">
+          <text class="info-label">数量：</text>
+          <text class="info-value">{{recognitionResult.quantity}}</text>
+        </view>
+        <view class="info-row">
+          <text class="info-label">分类：</text>
+          <text class="info-value">{{getCategoryName(recognitionResult.categoryId)}}</text>
+        </view>
+        <view class="info-row">
+          <text class="info-label">平台：</text>
+          <text class="info-value">{{getPlatformName(recognitionResult.platform)}}</text>
+        </view>
+        <view class="info-row">
+          <text class="info-label">购买日期：</text>
+          <text class="info-value">{{recognitionResult.orderTime}}</text>
+        </view>
+      </view>
+    </view>
+    
+    <view class="action-btns">
+      <button class="btn btn-save" bindtap="saveRecord">保存</button>
+      <button class="btn btn-retry" bindtap="retryRecognition">重新识别</button>
+    </view>
+  </view>
+  
+  <!-- 编辑弹窗组件 -->
+  <edit-dialog 
+    visible="{{editDialogVisible}}"
+    initialData="{{editDialogData}}"
+    bind:cancel="hideEditDialog"
+    bind:confirm="onEditConfirm"
+  />
+</view>

@@ -1,0 +1,95 @@
+<!--components/edit-dialog/edit-dialog.wxml-->
+<view class="dialog-mask" wx:if="{{visible}}" bindtap="onMaskTap">
+  <view class="dialog-content" catchtap="onContentTap">
+    <view class="dialog-header">
+      <text class="dialog-title">编辑商品信息</text>
+      <text class="dialog-close" bindtap="onCancel">✕</text>
+    </view>
+    
+    <view class="dialog-body">
+      <!-- 商品名称 -->
+      <view class="form-item">
+        <text class="form-label">商品名称</text>
+        <input 
+          class="form-input" 
+          placeholder="请输入商品名称" 
+          value="{{formData.productName}}"
+          bindinput="onProductNameInput"
+          confirm-type="done"
+        />
+      </view>
+      
+      <!-- 价格 -->
+      <view class="form-item">
+        <text class="form-label">价格</text>
+        <input 
+          class="form-input" 
+          type="digit"
+          placeholder="请输入价格" 
+          value="{{formData.price}}"
+          bindinput="onPriceInput"
+        />
+      </view>
+      
+      <!-- 数量 -->
+      <view class="form-item">
+        <text class="form-label">数量</text>
+        <input 
+          class="form-input" 
+          type="number"
+          placeholder="请输入数量" 
+          value="{{formData.quantity}}"
+          bindinput="onQuantityInput"
+        />
+      </view>
+      
+      <!-- 分类 -->
+      <view class="form-item">
+        <text class="form-label">分类</text>
+        <picker 
+          class="form-picker"
+          mode="selector" 
+          range="{{categories}}" 
+          range-key="name"
+          value="{{formData.categoryIndex}}"
+          bindchange="onCategoryChange"
+        >
+          <view class="picker-value">{{categories[formData.categoryIndex].name}}</view>
+        </picker>
+      </view>
+      
+      <!-- 平台 -->
+      <view class="form-item">
+        <text class="form-label">平台</text>
+        <picker 
+          class="form-picker"
+          mode="selector" 
+          range="{{platforms}}" 
+          range-key="name"
+          value="{{formData.platformIndex}}"
+          bindchange="onPlatformChange"
+        >
+          <view class="picker-value">{{platforms[formData.platformIndex].name}}</view>
+        </picker>
+      </view>
+      
+      <!-- 购买日期 -->
+      <view class="form-item">
+        <text class="form-label">购买日期</text>
+        <picker 
+          class="form-picker"
+          mode="date" 
+          value="{{formData.orderTime}}"
+          bindchange="onDateChange"
+        >
+          <view class="picker-value">{{formData.orderTime}}</view>
+        </picker>
+      </view>
+    </view>
+    
+    <view class="dialog-footer">
+      <button class="btn btn-cancel" bindtap="onCancel">取消</button>
+      <button class="btn btn-confirm" bindtap="onConfirm">确认</button>
+    </view>
+  </view>
+</view>
