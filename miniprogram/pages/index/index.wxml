@@ -1,0 +1,82 @@
+<!--pages/index/index.wxml-->
+<view class="container">
+  <!-- 头部操作区 -->
+  <view class="header">
+    <view class="add-btn" bindtap="goToRecord">
+      <text class="add-icon">+</text>
+      <text class="add-text">录入订单</text>
+    </view>
+  </view>
+  
+  <!-- 筛选区 -->
+  <view class="filter-section">
+    <picker 
+      mode="selector" 
+      range="{{categories}}" 
+      range-key="name"
+      value="{{filterCategoryIndex}}"
+      bindchange="onCategoryFilterChange"
+      class="filter-picker"
+    >
+      <view class="filter-item {{filterCategoryIndex > 0 ? 'active' : ''}}">
+        {{categories[filterCategoryIndex].name}}
+      </view>
+    </picker>
+    
+    <picker 
+      mode="selector" 
+      range="{{platforms}}" 
+      range-key="name"
+      value="{{filterPlatformIndex}}"
+      bindchange="onPlatformFilterChange"
+      class="filter-picker"
+    >
+      <view class="filter-item {{filterPlatformIndex > 0 ? 'active' : ''}}">
+        {{platforms[filterPlatformIndex].name}}
+      </view>
+    </picker>
+  </view>
+  
+  <!-- 记录列表 -->
+  <view class="record-list" wx:if="{{recordList.length > 0}}">
+    <view 
+      class="record-card" 
+      wx:for="{{recordList}}" 
+      wx:key="_id"
+      bindtap="goToDetail"
+      data-id="{{item._id}}"
+    >
+      <view class="card-left">
+        <view class="product-name">{{item.productName}}</view>
+        <view class="product-info">
+          <text class="info-tag">{{getCategoryName(item.categoryId)}}</text>
+          <text class="info-tag">{{getPlatformName(item.platform)}}</text>
+          <text class="info-date">{{item.orderTime}}</text>
+        </view>
+      </view>
+      
+      <view class="card-right">
+        <view class="price">¥{{item.price}}</view>
+        <view class="quantity">x{{item.quantity}}</view>
+      </view>
+    </view>
+  </view>
+  
+  <!-- 空状态 -->
+  <view class="empty-state" wx:else>
+    <text class="empty-icon">📦</text>
+    <text class="empty-text">暂无订单记录</text>
+    <text class="empty-hint">点击右上角录入第一笔订单</text>
+  </view>
+  
+  <!-- 加载更多 -->
+  <view class="load-more" wx:if="{{hasMore}}">
+    <text wx:if="{{loading}}">加载中...</text>
+    <text wx:else bindtap="loadMore">加载更多</text>
+  </view>
+  
+  <!-- 没有更多 -->
+  <view class="no-more" wx:if="{{!hasMore && recordList.length > 0}}">
+    <text>没有更多了</text>
+  </view>
+</view>

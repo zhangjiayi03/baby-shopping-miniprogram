@@ -1,0 +1,10 @@
+{
+  "rules": {
+    "records": {
+      "create": true,
+      "read": true,
+      "update": true,
+      "delete": false
+    }
+  }
+}
