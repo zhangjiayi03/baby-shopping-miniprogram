@@ -1,0 +1,48 @@
+/* pages/stats/stats.wxss */
+.container {
+  min-height: 100vh;
+  background-color: #f5f5f5;
+}
+
+.stats-header {
+  background-color: #1890ff;
+  padding: 40rpx 30rpx;
+}
+
+.header-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #fff;
+}
+
+.stats-content {
+  padding: 30rpx;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 150rpx 30rpx;
+  text-align: center;
+  background-color: #fff;
+  border-radius: 20rpx;
+  margin-top: 30rpx;
+}
+
+.empty-icon {
+  font-size: 120rpx;
+  margin-bottom: 30rpx;
+}
+
+.empty-text {
+  font-size: 32rpx;
+  color: #666;
+  margin-bottom: 15rpx;
+}
+
+.empty-hint {
+  font-size: 26rpx;
+  color: #999;
+}

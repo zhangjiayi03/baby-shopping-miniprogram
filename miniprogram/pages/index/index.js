@@ -1,4 +1,6 @@
 // pages/index/index.js
+const app = getApp();
+
 Page({
   data: {
     recordList: [],
@@ -32,15 +34,73 @@ Page({
       { id: 'douyin', name: '抖音' },
       { id: 'meituan', name: '美团' },
       { id: 'other', name: '其他' }
-    ]
+    ],
+    
+    // 预算和统计数据
+    monthlyBudget: 2000,
+    spentThisMonth: 0,
+    todaySpent: 0,
+    yesterdaySpent: 0,
+    todayOrderCount: 0
   },
 
   onLoad() {
     this.loadRecords();
+    this.calculateStats();
   },
 
   onPullDownRefresh() {
     this.refreshRecords();
+    this.calculateStats();
+  },
+
+  // 计算统计数据
+  async calculateStats() {
+    try {
+      const now = new Date();
+      const today = now.toDateString();
+      const yesterday = new Date(now.setDate(now.getDate() - 1)).toDateString();
+      const thisMonthStart = new Date().setDate(1);
+      
+      // TODO: 从云函数获取真实数据
+      // const res = await wx.cloud.callFunction({
+      //   name: 'stats',
+      //   data: { action: 'getStats' }
+      // });
+      
+      // 模拟数据
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // 计算本月花费
+      const mockRecords = this.data.recordList;
+      const thisMonthRecords = mockRecords.filter(r => 
+        new Date(r.orderTime).getTime() >= thisMonthStart
+      );
+      const spentThisMonth = thisMonthRecords.reduce((sum, r) => 
+        sum + parseFloat(r.price) * r.quantity, 0
+      );
+      
+      // 计算今日花费
+      const todayRecords = mockRecords.filter(r => 
+        new Date(r.orderTime).toDateString() === today
+      );
+      const todaySpent = todayRecords.reduce((sum, r) => 
+        sum + parseFloat(r.price) * r.quantity, 0
+      );
+      
+      // 计算昨日花费（模拟）
+      const yesterdaySpent = todaySpent > 0 ? todaySpent * 0.8 : 0;
+      
+      this.setData({
+        spentThisMonth: parseFloat(spentThisMonth.toFixed(2)),
+        todaySpent: parseFloat(todaySpent.toFixed(2)),
+        yesterdaySpent: parseFloat(yesterdaySpent.toFixed(2)),
+        todayOrderCount: todayRecords.length
+      });
+      
+    } catch (error) {
+      console.error('计算统计失败:', error);
+    }
   },
 
   // 加载记录列表
@@ -71,24 +131,33 @@ Page({
         list: [
           {
             _id: '1',
-            productName: '示例商品 1',
-            price: '99.00',
-            quantity: 1,
+            productName: '飞鹤星飞帆 3 段奶粉',
+            price: '298.00',
+            quantity: 2,
             categoryId: 1,
             platform: 'taobao',
-            orderTime: '2026-04-01'
+            orderTime: '2026-04-05'
           },
           {
             _id: '2',
-            productName: '示例商品 2',
-            price: '199.00',
-            quantity: 2,
+            productName: '帮宝适纸尿裤 L 码',
+            price: '159.00',
+            quantity: 1,
             categoryId: 2,
             platform: 'jd',
-            orderTime: '2026-04-02'
+            orderTime: '2026-04-04'
+          },
+          {
+            _id: '3',
+            productName: '婴儿连体衣春秋款',
+            price: '89.00',
+            quantity: 3,
+            categoryId: 3,
+            platform: 'pdd',
+            orderTime: '2026-04-03'
           }
         ],
-        total: 2
+        total: 3
       };
       
       if (isRefresh) {
@@ -131,19 +200,70 @@ Page({
     }
   },
 
-  // 跳转录入页
-  goToRecord() {
-    wx.navigateTo({
-      url: '/pages/record/record'
-    });
-  },
-
   // 跳转详情页
   goToDetail(e) {
     const id = e.currentTarget.dataset.id;
     wx.navigateTo({
       url: `/pages/detail/detail?id=${id}`
     });
+  },
+
+  // 编辑记录
+  onEdit(e) {
+    const id = e.currentTarget.dataset.id;
+    wx.navigateTo({
+      url: `/pages/detail/detail?id=${id}&mode=edit`
+    });
+  },
+
+  // 删除记录
+  onDelete(e) {
+    const id = e.currentTarget.dataset.id;
+    
+    wx.showModal({
+      title: '确认删除',
+      content: '确定要删除这条记录吗？删除后无法恢复。',
+      confirmColor: '#ff4d4f',
+      success: (res) => {
+        if (res.confirm) {
+          this.deleteRecord(id);
+        }
+      }
+    });
+  },
+
+  // 执行删除
+  async deleteRecord(id) {
+    try {
+      // TODO: 调用云函数删除
+      // await wx.cloud.callFunction({
+      //   name: 'record',
+      //   data: { action: 'delete', data: { id } }
+      // });
+      
+      // 模拟删除
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      const newList = this.data.recordList.filter(item => item._id !== id);
+      this.setData({
+        recordList: newList
+      });
+      
+      wx.showToast({
+        title: '删除成功',
+        icon: 'success'
+      });
+      
+      // 重新计算统计
+      this.calculateStats();
+      
+    } catch (error) {
+      console.error('删除失败:', error);
+      wx.showToast({
+        title: '删除失败',
+        icon: 'none'
+      });
+    }
   },
 
   // 分类筛选

@@ -1,0 +1,80 @@
+/* components/stats-card/stats-card.wxss */
+.stats-card {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  border-radius: 20rpx;
+  padding: 30rpx;
+  margin: 0 30rpx 20rpx;
+  color: #fff;
+  box-shadow: 0 8rpx 24rpx rgba(245, 87, 108, 0.4);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 25rpx;
+}
+
+.card-icon {
+  font-size: 36rpx;
+  margin-right: 15rpx;
+}
+
+.card-title {
+  font-size: 30rpx;
+  font-weight: bold;
+}
+
+.stats-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.today-amount {
+  font-size: 56rpx;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.comparison {
+  display: flex;
+  align-items: center;
+  gap: 15rpx;
+}
+
+.change-tag {
+  display: flex;
+  align-items: center;
+  background-color: rgba(255, 255, 255, 0.3);
+  padding: 6rpx 16rpx;
+  border-radius: 20rpx;
+  font-size: 24rpx;
+  font-weight: bold;
+}
+
+.change-tag.increase {
+  background-color: rgba(239, 68, 68, 0.9);
+}
+
+.change-tag.decrease {
+  background-color: rgba(74, 222, 128, 0.9);
+}
+
+.change-icon {
+  margin-right: 6rpx;
+  font-size: 20rpx;
+}
+
+.change-value {
+  font-size: 24rpx;
+}
+
+.comparison-text {
+  font-size: 26rpx;
+  opacity: 0.9;
+}
+
+.order-count {
+  font-size: 26rpx;
+  opacity: 0.8;
+}

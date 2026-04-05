@@ -1,0 +1,27 @@
+<!--components/budget-card/budget-card.wxml-->
+<view class="budget-card">
+  <view class="card-header">
+    <text class="card-icon">📊</text>
+    <text class="card-title">本月预算</text>
+  </view>
+  
+  <view class="budget-info">
+    <view class="budget-amount">
+      <text class="amount-label">已花</text>
+      <text class="amount-value">¥{{spent}}</text>
+      <text class="amount-divider">/</text>
+      <text class="amount-label">预算</text>
+      <text class="amount-value budget">¥{{budget}}</text>
+    </view>
+    
+    <view class="progress-bar">
+      <view class="progress-fill" style="width: {{percentage}}%"></view>
+    </view>
+    
+    <view class="budget-remaining">
+      <text class="remaining-label">剩余</text>
+      <text class="remaining-value">¥{{remaining}}</text>
+      <text class="percentage-tag" style="background-color: {{percentageColor}}">{{percentage}}%</text>
+    </view>
+  </view>
+</view>
