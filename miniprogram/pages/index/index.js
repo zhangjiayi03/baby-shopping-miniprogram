@@ -57,49 +57,28 @@ Page({
   // 计算统计数据
   async calculateStats() {
     try {
-      const now = new Date();
-      const today = now.toDateString();
-      const yesterday = new Date(now.setDate(now.getDate() - 1)).toDateString();
-      const thisMonthStart = new Date().setDate(1);
-      
-      // TODO: 从云函数获取真实数据
-      // const res = await wx.cloud.callFunction({
-      //   name: 'stats',
-      //   data: { action: 'getStats' }
-      // });
-      
-      // 模拟数据
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      // 计算本月花费
-      const mockRecords = this.data.recordList;
-      const thisMonthRecords = mockRecords.filter(r => 
-        new Date(r.orderTime).getTime() >= thisMonthStart
-      );
-      const spentThisMonth = thisMonthRecords.reduce((sum, r) => 
-        sum + parseFloat(r.price) * r.quantity, 0
-      );
-      
-      // 计算今日花费
-      const todayRecords = mockRecords.filter(r => 
-        new Date(r.orderTime).toDateString() === today
-      );
-      const todaySpent = todayRecords.reduce((sum, r) => 
-        sum + parseFloat(r.price) * r.quantity, 0
-      );
-      
-      // 计算昨日花费（模拟）
-      const yesterdaySpent = todaySpent > 0 ? todaySpent * 0.8 : 0;
-      
-      this.setData({
-        spentThisMonth: parseFloat(spentThisMonth.toFixed(2)),
-        todaySpent: parseFloat(todaySpent.toFixed(2)),
-        yesterdaySpent: parseFloat(yesterdaySpent.toFixed(2)),
-        todayOrderCount: todayRecords.length
+      // 调用云函数获取统计数据
+      const res = await wx.cloud.callFunction({
+        name: 'stats',
+        data: { action: 'getStats' }
       });
+      
+      if (res.result && res.result.success) {
+        const stats = res.result.data;
+        this.setData({
+          spentThisMonth: stats.thisMonth.spent,
+          todaySpent: stats.today.spent,
+          yesterdaySpent: stats.yesterday.spent,
+          todayOrderCount: stats.today.count
+        });
+      }
       
     } catch (error) {
       console.error('计算统计失败:', error);
+      wx.showToast({
+        title: '统计加载失败',
+        icon: 'none'
+      });
     }
   },
 
@@ -110,69 +89,37 @@ Page({
     this.setData({ loading: true });
     
     try {
-      // TODO: 调用云函数获取记录列表
-      // const res = await wx.cloud.callFunction({
-      //   name: 'record',
-      //   data: {
-      //     action: 'list',
-      //     data: {
-      //       page: this.data.page,
-      //       pageSize: this.data.pageSize,
-      //       categoryId: this.data.categoryId,
-      //       platform: this.data.platform
-      //     }
-      //   }
-      // });
-      
-      // 模拟数据
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const mockData = {
-        list: [
-          {
-            _id: '1',
-            productName: '飞鹤星飞帆 3 段奶粉',
-            price: '298.00',
-            quantity: 2,
-            categoryId: 1,
-            platform: 'taobao',
-            orderTime: '2026-04-05'
-          },
-          {
-            _id: '2',
-            productName: '帮宝适纸尿裤 L 码',
-            price: '159.00',
-            quantity: 1,
-            categoryId: 2,
-            platform: 'jd',
-            orderTime: '2026-04-04'
-          },
-          {
-            _id: '3',
-            productName: '婴儿连体衣春秋款',
-            price: '89.00',
-            quantity: 3,
-            categoryId: 3,
-            platform: 'pdd',
-            orderTime: '2026-04-03'
+      // 调用云函数获取记录列表
+      const res = await wx.cloud.callFunction({
+        name: 'record',
+        data: {
+          action: 'list',
+          data: {
+            page: this.data.page,
+            pageSize: this.data.pageSize,
+            categoryId: this.data.categoryId,
+            platform: this.data.platform
           }
-        ],
-        total: 3
-      };
+        }
+      });
       
-      if (isRefresh) {
-        this.setData({
-          recordList: mockData.list,
-          page: 1,
-          hasMore: mockData.list.length >= this.data.pageSize
-        });
-      } else {
-        const newList = [...this.data.recordList, ...mockData.list];
-        this.setData({
-          recordList: newList,
-          page: this.data.page + 1,
-          hasMore: mockData.list.length >= this.data.pageSize
-        });
+      if (res.result && res.result.success) {
+        const { list, total } = res.result.data;
+        
+        if (isRefresh) {
+          this.setData({
+            recordList: list,
+            page: 1,
+            hasMore: list.length >= this.data.pageSize
+          });
+        } else {
+          const newList = [...this.data.recordList, ...list];
+          this.setData({
+            recordList: newList,
+            page: this.data.page + 1,
+            hasMore: list.length >= this.data.pageSize
+          });
+        }
       }
       
       wx.hideLoading();
@@ -235,27 +182,29 @@ Page({
   // 执行删除
   async deleteRecord(id) {
     try {
-      // TODO: 调用云函数删除
-      // await wx.cloud.callFunction({
-      //   name: 'record',
-      //   data: { action: 'delete', data: { id } }
-      // });
-      
-      // 模拟删除
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      const newList = this.data.recordList.filter(item => item._id !== id);
-      this.setData({
-        recordList: newList
+      // 调用云函数删除
+      const res = await wx.cloud.callFunction({
+        name: 'record',
+        data: { 
+          action: 'delete', 
+          data: { id: id } 
+        }
       });
       
-      wx.showToast({
-        title: '删除成功',
-        icon: 'success'
-      });
-      
-      // 重新计算统计
-      this.calculateStats();
+      if (res.result && res.result.success) {
+        const newList = this.data.recordList.filter(item => item._id !== id);
+        this.setData({
+          recordList: newList
+        });
+        
+        wx.showToast({
+          title: '删除成功',
+          icon: 'success'
+        });
+        
+        // 重新计算统计
+        this.calculateStats();
+      }
       
     } catch (error) {
       console.error('删除失败:', error);

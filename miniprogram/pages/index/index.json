@@ -1,5 +1,7 @@
 {
-  "usingComponents": {},
-  "navigationBarTitleText": "订单列表",
-  "enablePullDownRefresh": true
+  "navigationBarTitleText": "宝宝购物记",
+  "usingComponents": {
+    "budget-card": "/components/budget-card/budget-card",
+    "stats-card": "/components/stats-card/stats-card"
+  }
 }
