@@ -68,12 +68,10 @@
       <!-- 操作按钮组 -->
       <view class="card-actions">
         <view class="action-btn edit" bindtap="onEdit" data-id="{{item._id}}">
-          <text class="action-icon">✏️</text>
-          <text class="action-text">编辑</text>
+          <text class="action-text">✏️ 编辑</text>
         </view>
         <view class="action-btn delete" bindtap="onDelete" data-id="{{item._id}}">
-          <text class="action-icon">🗑️</text>
-          <text class="action-text">删除</text>
+          <text class="action-text">🗑️ 删除</text>
         </view>
       </view>
     </view>
