@@ -71,13 +71,26 @@ Page({
           yesterdaySpent: stats.yesterday.spent,
           todayOrderCount: stats.today.count
         });
+      } else {
+        // 云函数失败，使用默认值
+        this.setData({
+          monthlyBudget: 2000,
+          spentThisMonth: 0,
+          todaySpent: 0,
+          yesterdaySpent: 0,
+          todayOrderCount: 0
+        });
       }
       
     } catch (error) {
       console.error('计算统计失败:', error);
-      wx.showToast({
-        title: '统计加载失败',
-        icon: 'none'
+      // 使用默认值
+      this.setData({
+        monthlyBudget: 2000,
+        spentThisMonth: 0,
+        todaySpent: 0,
+        yesterdaySpent: 0,
+        todayOrderCount: 0
       });
     }
   },
@@ -104,7 +117,7 @@ Page({
       });
       
       if (res.result && res.result.success) {
-        const { list, total } = res.result.data;
+        const { list } = res.result.data;
         
         if (isRefresh) {
           this.setData({
@@ -120,11 +133,22 @@ Page({
             hasMore: list.length >= this.data.pageSize
           });
         }
+      } else {
+        // 云函数失败，显示空状态
+        this.setData({
+          recordList: [],
+          hasMore: false
+        });
       }
       
       wx.hideLoading();
     } catch (error) {
       console.error('加载记录失败:', error);
+      // 显示空状态
+      this.setData({
+        recordList: [],
+        hasMore: false
+      });
       wx.showToast({
         title: '加载失败',
         icon: 'none'
