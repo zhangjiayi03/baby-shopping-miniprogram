@@ -1,0 +1,8 @@
+<!-- 统计图标 - 填充（选中） -->
+<!-- 尺寸：81x81px，颜色：#1890ff -->
+<svg width="81" height="81" viewBox="0 0 81 81" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <line x1="13" y1="67" x2="68" y2="67" stroke="#1890ff" stroke-width="4" stroke-linecap="round"/>
+  <rect x="20.5" y="43" width="10" height="24" rx="3" fill="#1890ff"/>
+  <rect x="35.5" y="28" width="10" height="39" rx="3" fill="#1890ff"/>
+  <rect x="50.5" y="18" width="10" height="49" rx="3" fill="#1890ff"/>
+</svg>

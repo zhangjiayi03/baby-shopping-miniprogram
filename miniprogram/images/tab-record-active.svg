@@ -1,0 +1,11 @@
+<!-- 记账图标 - 填充（选中） -->
+<!-- 尺寸：81x81px，颜色：#1890ff -->
+<svg width="81" height="81" viewBox="0 0 81 81" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="18.5" y="16" width="44" height="54" rx="4" fill="#1890ff"/>
+  <line x1="26.5" y1="26" x2="54.5" y2="26" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <line x1="26.5" y1="36" x2="54.5" y2="36" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <line x1="26.5" y1="46" x2="47.5" y2="46" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="57.5" cy="57.5" r="11" fill="white"/>
+  <line x1="57.5" y1="52.5" x2="57.5" y2="57.5" stroke="#1890ff" stroke-width="3" stroke-linecap="round"/>
+  <line x1="57.5" y1="57.5" x2="62.5" y2="57.5" stroke="#1890ff" stroke-width="3" stroke-linecap="round"/>
+</svg>

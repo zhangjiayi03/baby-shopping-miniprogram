@@ -1,0 +1,5 @@
+<!-- 首页图标 - 填充（选中） -->
+<!-- 尺寸：81x81px，颜色：#1890ff -->
+<svg width="81" height="81" viewBox="0 0 81 81" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M40.5 13L13 36V67H32V52H49V67H68V36L40.5 13ZM63 62H54V47H27V62H18V38L40.5 19L63 38V62Z" fill="#1890ff"/>
+</svg>

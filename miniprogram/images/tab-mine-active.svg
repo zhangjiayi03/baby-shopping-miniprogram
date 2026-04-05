@@ -1,0 +1,9 @@
+<!-- 宝宝图标 - 填充（选中） -->
+<!-- 尺寸：81x81px，颜色：#1890ff -->
+<svg width="81" height="81" viewBox="0 0 81 81" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="40.5" cy="28.5" r="13" fill="#1890ff"/>
+  <path d="M23.5 67C23.5 52 31 43 40.5 43C50 43 57.5 52 57.5 67" stroke="#1890ff" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="35.5" cy="26.5" r="2.5" fill="white"/>
+  <circle cx="45.5" cy="26.5" r="2.5" fill="white"/>
+  <path d="M37.5 31Q40.5 34 43.5 31" stroke="white" stroke-width="2" stroke-linecap="round"/>
+</svg>

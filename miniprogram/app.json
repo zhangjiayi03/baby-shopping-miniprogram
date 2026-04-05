@@ -20,19 +20,27 @@
     "list": [
       {
         "pagePath": "pages/index/index",
-        "text": "🏠 首页"
+        "text": "首页",
+        "iconPath": "images/tab-home.svg",
+        "selectedIconPath": "images/tab-home-active.svg"
       },
       {
         "pagePath": "pages/record/record",
-        "text": "📝 记账"
+        "text": "记账",
+        "iconPath": "images/tab-record.svg",
+        "selectedIconPath": "images/tab-record-active.svg"
       },
       {
         "pagePath": "pages/stats/stats",
-        "text": "📈 统计"
+        "text": "统计",
+        "iconPath": "images/tab-stats.svg",
+        "selectedIconPath": "images/tab-stats-active.svg"
       },
       {
         "pagePath": "pages/mine/mine",
-        "text": "👤 宝宝"
+        "text": "宝宝",
+        "iconPath": "images/tab-mine.svg",
+        "selectedIconPath": "images/tab-mine-active.svg"
       }
     ]
   },

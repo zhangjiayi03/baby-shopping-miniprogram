@@ -1,0 +1,5 @@
+<!-- 首页图标 - 线性（未选中） -->
+<!-- 尺寸：81x81px，颜色：#999999 -->
+<svg width="81" height="81" viewBox="0 0 81 81" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M40.5 15L15 35V65H30V50H51V65H66V35L40.5 15Z" stroke="#999999" stroke-width="3" stroke-linejoin="round"/>
+</svg>
