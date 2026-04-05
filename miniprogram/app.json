@@ -21,26 +21,26 @@
       {
         "pagePath": "pages/index/index",
         "text": "首页",
-        "iconPath": "images/tab-home.svg",
-        "selectedIconPath": "images/tab-home-active.svg"
+        "iconPath": "images/tab-home.png",
+        "selectedIconPath": "images/tab-home-active.png"
       },
       {
         "pagePath": "pages/record/record",
         "text": "记账",
-        "iconPath": "images/tab-record.svg",
-        "selectedIconPath": "images/tab-record-active.svg"
+        "iconPath": "images/tab-record.png",
+        "selectedIconPath": "images/tab-record-active.png"
       },
       {
         "pagePath": "pages/stats/stats",
         "text": "统计",
-        "iconPath": "images/tab-stats.svg",
-        "selectedIconPath": "images/tab-stats-active.svg"
+        "iconPath": "images/tab-stats.png",
+        "selectedIconPath": "images/tab-stats-active.png"
       },
       {
         "pagePath": "pages/mine/mine",
         "text": "宝宝",
-        "iconPath": "images/tab-mine.svg",
-        "selectedIconPath": "images/tab-mine-active.svg"
+        "iconPath": "images/tab-mine.png",
+        "selectedIconPath": "images/tab-mine-active.png"
       }
     ]
   },
