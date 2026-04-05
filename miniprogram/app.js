@@ -4,7 +4,7 @@ App({
     // 初始化云开发环境
     if (wx.cloud) {
       wx.cloud.init({
-        env: 'your-env-id', // 替换为你的云环境 ID
+        env: 'cloud1-8ggfnnl90cbdd81e', // 云环境 ID
         traceUser: true
       });
     }
@@ -12,12 +12,12 @@ App({
     // 全局数据初始化
     this.globalData = {
       userInfo: null,
-      cloudEnv: 'your-env-id'
+      cloudEnv: 'cloud1-8ggfnnl90cbdd81e'
     };
   },
   
   globalData: {
     userInfo: null,
-    cloudEnv: ''
+    cloudEnv: 'cloud1-8ggfnnl90cbdd81e'
   }
 });
