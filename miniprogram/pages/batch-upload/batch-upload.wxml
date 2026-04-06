@@ -1,0 +1,79 @@
+<!--pages/batch-upload/batch-upload.wxml-->
+<view class="container">
+  <view class="header">
+    <text class="title">批量上传订单</text>
+    <text class="subtitle">一次最多上传 9 张截图</text>
+  </view>
+
+  <!-- 图片选择区 -->
+  <view class="upload-section">
+    <view class="upload-btn" bindtap="chooseImages">
+      <text class="upload-icon">📷</text>
+      <text class="upload-text">选择图片</text>
+    </view>
+    <text class="upload-hint">已选择 {{imageList.length}} 张</text>
+  </view>
+
+  <!-- 图片预览区 -->
+  <view class="image-list" wx:if="{{imageList.length > 0}}">
+    <view class="image-item" wx:for="{{imageList}}" wx:key="index">
+      <image class="image-preview" src="{{item}}" mode="aspectFill" />
+      <view class="image-index">{{index + 1}}</view>
+      <view class="image-delete" bindtap="deleteImage" data-index="{{index}}">
+        <text class="delete-icon">×</text>
+      </view>
+      <view class="image-status" wx:if="{{statusList[index]}}">
+        <text class="status-icon">{{statusList[index].icon}}</text>
+        <text class="status-text">{{statusList[index].text}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:else>
+    <text class="empty-icon">🖼️</text>
+    <text class="empty-text">暂无图片</text>
+    <text class="empty-hint">点击上方按钮选择订单截图</text>
+  </view>
+
+  <!-- 操作按钮 -->
+  <view class="action-section" wx:if="{{imageList.length > 0}}">
+    <button class="action-btn preview" bindtap="previewImages">预览</button>
+    <button class="action-btn clear" bindtap="clearImages">清空</button>
+    <button class="action-btn start" bindtap="startBatch" disabled="{{processing}}">
+      <text wx:if="{{!processing}}">开始识别 ({{imageList.length}}张)</text>
+      <text wx:else>识别中...</text>
+    </button>
+  </view>
+
+  <!-- 识别结果 -->
+  <view class="result-section" wx:if="{{resultList.length > 0}}">
+    <view class="result-header">
+      <text class="result-title">识别结果</text>
+      <text class="result-count">成功 {{successCount}}/{{resultList.length}}</text>
+    </view>
+
+    <view class="result-list">
+      <view class="result-item {{item.status}}" wx:for="{{resultList}}" wx:key="index">
+        <view class="result-status">
+          <text class="status-icon">{{item.icon}}</text>
+          <text class="status-text">{{item.statusText}}</text>
+        </view>
+        <view class="result-info" wx:if="{{item.data}}">
+          <text class="product-name">{{item.data.productName}}</text>
+          <text class="product-price">¥{{item.data.price}}</text>
+        </view>
+        <view class="result-error" wx:if="{{item.error}}">
+          <text class="error-text">{{item.error}}</text>
+        </view>
+        <view class="result-actions" wx:if="{{item.status === 'success'}}">
+          <button class="save-btn" bindtap="saveRecord" data-index="{{index}}">保存</button>
+        </view>
+      </view>
+    </view>
+
+    <button class="save-all-btn" bindtap="saveAll" wx:if="{{successCount > 0}}">
+      批量保存 ({{successCount}}条)
+    </button>
+  </view>
+</view>

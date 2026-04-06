@@ -30,10 +30,10 @@ Page({
     // 页面加载时的初始化
   },
 
-  // 选择图片
+  // 选择图片（单张）
   chooseImage() {
     wx.chooseImage({
-      count: 9,
+      count: 1,
       sizeType: ['compressed'],
       sourceType: ['album', 'camera'],
       success: (res) => {
@@ -45,6 +45,13 @@ Page({
         // 上传图片并识别
         this.uploadAndRecognize(tempFilePaths[0]);
       }
+    });
+  },
+
+  // 跳转批量上传页面
+  goBatchUpload() {
+    wx.navigateTo({
+      url: '/pages/batch-upload/batch-upload'
     });
   },
 

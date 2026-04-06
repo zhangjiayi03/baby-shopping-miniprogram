@@ -2,9 +2,15 @@
 <view class="container">
   <!-- 上传区域 -->
   <view class="upload-section">
-    <view class="upload-btn" bindtap="chooseImage">
-      <text class="upload-icon">+</text>
-      <text class="upload-text">上传订单截图</text>
+    <view class="upload-actions">
+      <view class="upload-btn" bindtap="chooseImage">
+        <text class="upload-icon">📷</text>
+        <text class="upload-text">单张上传</text>
+      </view>
+      <view class="upload-btn batch-btn" bindtap="goBatchUpload">
+        <text class="upload-icon">📸</text>
+        <text class="upload-text">批量上传</text>
+      </view>
     </view>
     
     <!-- 已上传预览 -->

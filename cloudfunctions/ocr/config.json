@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "openapi": [
+      "security.imgSecCheck"
+    ]
+  },
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "timeout": 10,
+  "memorySize": 256
+}
