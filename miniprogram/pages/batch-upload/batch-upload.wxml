@@ -77,4 +77,12 @@
       批量保存 ({{successCount}}条)
     </button>
   </view>
+
+  <!-- 编辑弹窗 -->
+  <edit-dialog
+    visible="{{editDialogVisible}}"
+    initialData="{{editDialogData}}"
+    bind:cancel="hideEditDialog"
+    bind:confirm="onEditConfirm"
+  />
 </view>

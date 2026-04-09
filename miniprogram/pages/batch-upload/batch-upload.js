@@ -5,7 +5,31 @@ Page({
     statusList: [], // 每张图的识别状态
     resultList: [], // 识别结果
     processing: false,
-    maxCount: 9
+    maxCount: 9,
+    
+    // 编辑弹窗相关
+    editDialogVisible: false,
+    editDialogData: {},
+    editingIndex: -1,
+    
+    // 分类和平台映射
+    categories: [
+      { id: 1, name: '喂养' },
+      { id: 2, name: '洗护' },
+      { id: 3, name: '服装' },
+      { id: 4, name: '玩具' },
+      { id: 5, name: '医疗' },
+      { id: 6, name: '教育' },
+      { id: 7, name: '其他' }
+    ],
+    platforms: [
+      { id: 'taobao', name: '淘宝' },
+      { id: 'jd', name: '京东' },
+      { id: 'pdd', name: '拼多多' },
+      { id: 'douyin', name: '抖音' },
+      { id: 'meituan', name: '美团' },
+      { id: 'other', name: '其他' }
+    ]
   },
 
   onLoad(options) {
@@ -214,17 +238,85 @@ Page({
    */
   editRecord(e) {
     const index = e.currentTarget.dataset.index;
-    const { resultList } = this.data;
-    const item = result[index];
+    const { resultList, categories, platforms } = this.data;
+    const item = resultList[index];
 
     if (!item.data) {
       return;
     }
 
-    // 显示编辑弹窗（使用 record 页面的 edit-dialog 组件）
-    // 简单实现：跳转到 record 页面并传递数据
-    wx.navigateTo({
-      url: `/pages/record/record?editIndex=${index}&editData=${encodeURIComponent(JSON.stringify(item.data))}`
+    console.log('✏️ 准备编辑，index:', index, '数据:', item.data);
+    
+    // 计算分类和平台名称（如果不存在）
+    const categoryId = parseInt(item.data.categoryId) || 7;
+    const platform = item.data.platform || 'other';
+    
+    const categoryObj = categories.find(c => c.id === categoryId);
+    const platformObj = platforms.find(p => p.id === platform);
+    
+    const editData = {
+      productName: item.data.productName || '',
+      price: item.data.price || '0.00',
+      quantity: parseInt(item.data.quantity) || 1,
+      categoryId: categoryId,
+      categoryName: categoryObj ? categoryObj.name : '其他',
+      platform: platform,
+      platformName: platformObj ? platformObj.name : '其他',
+      orderTime: item.data.orderTime || new Date().toISOString().split('T')[0]
+    };
+    
+    console.log('编辑数据:', editData);
+    
+    this.setData({
+      editingIndex: index,
+      editDialogData: editData,
+      editDialogVisible: true
+    });
+  },
+
+  /**
+   * 隐藏编辑弹窗
+   */
+  hideEditDialog() {
+    this.setData({
+      editDialogVisible: false,
+      editingIndex: -1
+    });
+  },
+
+  /**
+   * 编辑确认
+   */
+  onEditConfirm(e) {
+    const editedData = e.detail;
+    const { editingIndex, resultList } = this.data;
+    
+    console.log('✏️ 编辑确认，index:', editingIndex, '新数据:', editedData);
+    
+    // 更新结果列表
+    const newList = [...resultList];
+    newList[editingIndex] = {
+      ...newList[editingIndex],
+      data: {
+        ...newList[editingIndex].data,
+        productName: editedData.productName,
+        price: editedData.price,
+        quantity: editedData.quantity,
+        categoryId: editedData.categoryId,
+        platform: editedData.platform,
+        orderTime: editedData.orderTime
+      }
+    };
+    
+    this.setData({
+      resultList: newList,
+      editDialogVisible: false,
+      editingIndex: -1
+    });
+    
+    wx.showToast({
+      title: '修改成功',
+      icon: 'success'
     });
   },
 
