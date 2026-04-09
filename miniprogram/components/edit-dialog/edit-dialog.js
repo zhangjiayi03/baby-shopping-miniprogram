@@ -62,17 +62,29 @@ Component({
   methods: {
     // 初始化表单数据
     initFormData(data) {
-      const categoryIndex = this.data.categories.findIndex(c => c.id === data.categoryId);
-      const platformIndex = this.data.platforms.findIndex(p => p.id === data.platform);
+      console.log('🔧 edit-dialog 收到 initialData:', data)
+      
+      // 确保类型正确（categoryId 可能是字符串）
+      const categoryId = parseInt(data.categoryId)
+      const platform = data.platform || 'jd'
+      
+      const categoryIndex = this.data.categories.findIndex(c => c.id === categoryId)
+      const platformIndex = this.data.platforms.findIndex(p => p.id === platform)
+      
+      console.log('分类索引:', categoryIndex, '平台索引:', platformIndex)
       
       this.setData({
         'formData.productName': data.productName || '',
-        'formData.price': data.price || '',
+        'formData.price': data.price ? String(data.price) : '',
         'formData.quantity': data.quantity || 1,
         'formData.categoryIndex': categoryIndex >= 0 ? categoryIndex : 0,
         'formData.platformIndex': platformIndex >= 0 ? platformIndex : 0,
         'formData.orderTime': data.orderTime || new Date().toISOString().split('T')[0]
-      });
+      }, () => {
+        console.log('✅ 表单数据已设置，当前 categoryIndex:', this.data.formData.categoryIndex, 'platformIndex:', this.data.formData.platformIndex)
+        console.log('当前分类:', this.data.categories[this.data.formData.categoryIndex])
+        console.log('当前平台:', this.data.platforms[this.data.formData.platformIndex])
+      })
     },
 
     // 点击遮罩层
