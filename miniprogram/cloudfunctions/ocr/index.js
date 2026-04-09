@@ -166,7 +166,8 @@ function parseOrder(texts) {
 function recognizeCategory(productName) {
   if (!productName) return 7
   
-  const categoryKeywords = {
+  // 分类关键词映射
+  const categoryMap = {
     '1': ['奶粉', '奶瓶', '辅食', '米粉', '果泥', '营养', '喂养', '母乳', '安抚奶嘴', '口水', '吸管杯', '学饮杯', '围嘴', '饭兜', '餐椅', '碗勺', '餐具'],
     '2': ['尿布', '纸尿裤', '尿不湿', '湿巾', '洗护', '沐浴', '护肤', '爽身粉', '护臀', '爽身露', '润肤露', '桃子水', '马桶垫', '产妇', '一次性', '抗菌', '旅行', '酒店', '月子', '护理', '清洁', '洗衣', '柔顺', '消毒', '浴盆', '浴巾', '毛巾', '口水巾', '纸巾', '抽纸', '柔纸巾', '棉柔巾', '洗脸巾'],
     '3': ['衣服', '裤子', '鞋', '帽', '袜', '连体衣', '套装', '棉服', '外套', '内衣', '睡衣', '睡袋', '抱被', '包被', '学步鞋', '机能鞋'],
@@ -175,13 +176,17 @@ function recognizeCategory(productName) {
     '6': ['早教', '课程', '学习', '启蒙', '教育', '识字', '数学', '英语', '国学', '古诗', '故事', '儿歌', '动画', '点读', '学习机', '故事机']
   }
 
-  for (const [categoryId, keywords] of Object.entries(categoryKeywords)) {
+  // 逐个检查
+  for (const [categoryId, keywords] of Object.entries(categoryMap)) {
     for (const keyword of keywords) {
       if (productName.includes(keyword)) {
+        console.log('匹配到分类:', categoryId, '关键词:', keyword)
         return parseInt(categoryId)
       }
     }
   }
+  
+  console.log('未匹配到分类，返回默认值 7')
   return 7
 }
 
@@ -231,14 +236,25 @@ async function main(event, context) {
       }
     }
 
-    const allText = texts.join(' ')
+    // 判断平台 - 优先检查旗舰店关键词
     let platform = 'jd'
-    if (allText.includes('淘宝') || allText.includes('天猫')) platform = 'taobao'
-    else if (allText.includes('拼多多') || allText.includes('拼')) platform = 'pdd'
-    else if (allText.includes('抖音')) platform = 'douyin'
-
+    const allText = texts.join(' ')
+    if (allText.includes('淘宝') || allText.includes('天猫') || allText.includes('旗舰店')) {
+      platform = 'taobao'
+    } else if (allText.includes('拼多多') || allText.includes('拼')) {
+      platform = 'pdd'
+    } else if (allText.includes('抖音')) {
+      platform = 'douyin'
+    } else if (allText.includes('美团') || allText.includes('美团外卖')) {
+      platform = 'meituan'
+    }
+    
+    // 解析订单
     const parsedResult = parseOrder(texts)
+    
+    // 识别分类
     const categoryId = recognizeCategory(parsedResult.productName || '')
+    console.log('平台:', platform, '分类 ID:', categoryId)
 
     const response = {
       success: true,
