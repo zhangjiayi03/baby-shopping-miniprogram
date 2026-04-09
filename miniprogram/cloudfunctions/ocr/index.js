@@ -236,11 +236,15 @@ async function main(event, context) {
       }
     }
 
-    // 判断平台 - 优先检查旗舰店关键词
-    let platform = 'jd'
+    // 判断平台 - 按优先级检查
+    let platform = 'jd'  // 默认京东
     const allText = texts.join(' ')
-    if (allText.includes('淘宝') || allText.includes('天猫') || allText.includes('旗舰店')) {
+    
+    // 明确关键词优先
+    if (allText.includes('淘宝') || allText.includes('天猫')) {
       platform = 'taobao'
+    } else if (allText.includes('京东') || allText.includes('JD') || allText.includes('京')) {
+      platform = 'jd'
     } else if (allText.includes('拼多多') || allText.includes('拼')) {
       platform = 'pdd'
     } else if (allText.includes('抖音')) {
@@ -248,6 +252,7 @@ async function main(event, context) {
     } else if (allText.includes('美团') || allText.includes('美团外卖')) {
       platform = 'meituan'
     }
+    // 默认就是京东，不需要额外判断
     
     // 解析订单
     const parsedResult = parseOrder(texts)
