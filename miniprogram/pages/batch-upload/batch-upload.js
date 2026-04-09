@@ -331,9 +331,15 @@ Page({
     const { resultList } = this.data;
     const item = resultList[index];
 
-    if (!item.data) {
+    console.log('💾 准备保存，index:', index, 'item:', item);
+
+    if (!item || !item.data) {
+      console.error('❌ 数据为空，无法保存');
+      wx.showToast({ title: '数据为空，请重试', icon: 'none' });
       return;
     }
+
+    console.log('保存数据:', item.data);
 
     wx.showLoading({ title: '保存中...' });
 
@@ -342,11 +348,20 @@ Page({
         name: 'record',
         data: {
           action: 'create',
-          record: item.data
+          record: {
+            productName: item.data.productName,
+            price: parseFloat(item.data.price) || 0,
+            quantity: parseInt(item.data.quantity) || 1,
+            categoryId: parseInt(item.data.categoryId) || 7,
+            platform: item.data.platform || 'other',
+            orderTime: item.data.orderTime || new Date().toISOString().split('T')[0]
+          }
         }
       });
 
-      if (res.result.success) {
+      console.log('云函数返回:', res.result);
+
+      if (res.result && res.result.success) {
         // 更新状态为已保存
         resultList[index] = {
           ...item,
@@ -362,12 +377,12 @@ Page({
           icon: 'success'
         });
       } else {
-        throw new Error(res.result.message || '保存失败');
+        throw new Error(res.result?.message || '保存失败');
       }
     } catch (err) {
       console.error('保存失败:', err);
       wx.showToast({
-        title: '保存失败',
+        title: '保存失败：' + err.message,
         icon: 'none'
       });
     }
