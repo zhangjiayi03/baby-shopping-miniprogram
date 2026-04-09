@@ -43,11 +43,11 @@
         </view>
         <view class="info-row">
           <text class="info-label">分类：</text>
-          <text class="info-value">{{getCategoryName(recognitionResult.categoryId)}}</text>
+          <text class="info-value">{{recognitionResult.categoryName}}</text>
         </view>
         <view class="info-row">
           <text class="info-label">平台：</text>
-          <text class="info-value">{{getPlatformName(recognitionResult.platform)}}</text>
+          <text class="info-value">{{recognitionResult.platformName}}</text>
         </view>
         <view class="info-row">
           <text class="info-label">购买日期：</text>

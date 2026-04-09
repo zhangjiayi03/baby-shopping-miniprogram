@@ -88,12 +88,25 @@ Page({
       
       if (ocrData.success) {
         console.log('OCR 识别成功:', ocrData.data)
+        const categoryId = ocrData.data.categoryId || 7
+        const platform = ocrData.data.platform || 'jd'
+        
+        // 计算分类名称
+        const categoryObj = this.data.categories.find(c => c.id === categoryId)
+        const categoryName = categoryObj ? categoryObj.name : '其他'
+        
+        // 计算平台名称
+        const platformObj = this.data.platforms.find(p => p.id === platform)
+        const platformName = platformObj ? platformObj.name : '京东'
+        
         const result = {
           productName: ocrData.data.productName || '未识别商品',
           price: ocrData.data.price.toString() || '0.00',
           quantity: ocrData.data.quantity || 1,
-          categoryId: ocrData.data.categoryId || 7,
-          platform: ocrData.data.platform || 'jd',
+          categoryId: categoryId,
+          categoryName: categoryName,
+          platform: platform,
+          platformName: platformName,
           orderTime: new Date().toISOString().split('T')[0]
         }
         console.log('准备设置识别结果:', result)
