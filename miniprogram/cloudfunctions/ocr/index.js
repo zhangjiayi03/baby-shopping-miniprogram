@@ -300,6 +300,10 @@ async function main(event, context) {
     const words = result.words_result || []
     const texts = words.map(item => item.words)
     console.log('识别到文字行数:', texts.length)
+    console.log('完整文字内容:')
+    texts.forEach((text, i) => {
+      console.log(`[${i}] ${text}`)
+    })
 
     // 如果没有识别到任何文字
     if (texts.length === 0) {
