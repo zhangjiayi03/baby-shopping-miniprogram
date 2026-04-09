@@ -86,10 +86,10 @@
   async saveAll() {
     const { resultList } = this.data;
     
-    console.log('📦 批量保存，resultList 长度:', result.length);
+    console.log('📦 批量保存，resultList 长度:', resultList.length);
     
     // 过滤出成功且有数据的记录
-    const successItems = result.filter(item => 
+    const successItems = resultList.filter(item => 
       item.status === 'success' && item.data && typeof item.data === 'object'
     );
 
