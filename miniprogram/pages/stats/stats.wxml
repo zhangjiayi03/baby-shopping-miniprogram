@@ -1,14 +1,81 @@
 <!--pages/stats/stats.wxml-->
 <view class="container">
-  <view class="stats-header">
-    <text class="header-title">📈 消费统计</text>
+  <!-- 统计概览卡片 -->
+  <view class="stats-overview">
+    <view class="overview-card today">
+      <view class="card-label">今日消费</view>
+      <view class="card-value">¥{{stats.today.spent.toFixed(2)}}</view>
+      <view class="card-detail">{{stats.today.count}} 笔订单</view>
+    </view>
+    
+    <view class="overview-card month">
+      <view class="card-label">本月消费</view>
+      <view class="card-value">¥{{stats.thisMonth.spent.toFixed(2)}}</view>
+      <view class="card-detail">{{stats.thisMonth.count}} 笔订单 · 预算 {{monthlyBudget}} 元</view>
+    </view>
   </view>
   
-  <view class="stats-content">
-    <view class="empty-state">
-      <text class="empty-icon">📊</text>
-      <text class="empty-text">统计功能开发中</text>
-      <text class="empty-hint">即将上线：月度报表、分类占比、趋势分析</text>
+  <!-- 月度趋势图表 -->
+  <view class="stats-section">
+    <view class="section-title">📊 月度趋势</view>
+    <view class="chart-container">
+      <view class="bar-chart">
+        <view class="bar-item" wx:for="{{monthlyTrend}}" wx:key="month">
+          <view class="bar-value" style="height: {{item.height}}%"></view>
+          <view class="bar-label">{{item.month}}</view>
+          <view class="bar-amount">¥{{item.amount}}</view>
+        </view>
+      </view>
     </view>
+  </view>
+  
+  <!-- 分类占比 -->
+  <view class="stats-section">
+    <view class="section-title">🏷️ 分类占比（本月）</view>
+    <view class="category-list">
+      <view class="category-item" wx:for="{{categoryStats}}" wx:key="categoryId">
+        <view class="category-info">
+          <view class="category-dot" style="background-color: {{item.color}}"></view>
+          <text class="category-name">{{item.name}}</text>
+        </view>
+        <view class="category-detail">
+          <text class="category-amount">¥{{item.amount}}</text>
+          <text class="category-percent">{{item.percentage}}%</text>
+        </view>
+        <view class="category-bar">
+          <view class="category-bar-fill" style="width: {{item.percentage}}%; background-color: {{item.color}}"></view>
+        </view>
+      </view>
+    </view>
+  </view>
+  
+  <!-- 平台分布 -->
+  <view class="stats-section">
+    <view class="section-title">🛒 平台分布（本月）</view>
+    <view class="platform-list">
+      <view class="platform-item" wx:for="{{platformStats}}" wx:key="platform">
+        <view class="platform-info">
+          <text class="platform-name">{{item.name}}</text>
+        </view>
+        <view class="platform-detail">
+          <text class="platform-amount">¥{{item.amount}}</text>
+          <text class="platform-percent">{{item.percentage}}%</text>
+        </view>
+      </view>
+    </view>
+  </view>
+  
+  <!-- 空状态 -->
+  <view class="empty-state" wx:if="{{!hasData}}">
+    <text class="empty-icon">📊</text>
+    <text class="empty-text">暂无统计数据</text>
+    <text class="empty-hint">开始记账后，这里会显示你的消费分析</text>
+    <button class="start-btn" bindtap="goToRecord">去记账</button>
+  </view>
+  
+  <!-- 加载状态 -->
+  <view class="loading-state" wx:if="{{loading}}">
+    <text class="loading-icon">⏳</text>
+    <text class="loading-text">加载中...</text>
   </view>
 </view>

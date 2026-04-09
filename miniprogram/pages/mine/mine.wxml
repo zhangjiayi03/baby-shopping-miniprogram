@@ -1,34 +1,150 @@
 <!--pages/mine/mine.wxml-->
 <view class="container">
-  <view class="user-header">
-    <view class="avatar">👤</view>
-    <view class="user-info">
-      <text class="nickname">宝宝购物记用户</text>
-      <text class="desc">记录每一笔成长开销</text>
+  <!-- 用户信息卡片 -->
+  <view class="user-card">
+    <view class="avatar-section">
+      <view class="avatar">👶</view>
+      <view class="user-info">
+        <text class="nickname">{{userInfo.nickname || '宝宝购物记'}}</text>
+        <text class="desc">已记录 {{totalDays}} 天 · {{totalRecords}} 笔订单</text>
+      </view>
+    </view>
+    <view class="total-spent">
+      <text class="label">累计消费</text>
+      <text class="amount">¥{{totalSpent.toFixed(2)}}</text>
     </view>
   </view>
   
-  <view class="menu-section">
-    <view class="menu-item">
-      <text class="menu-icon">⚙️</text>
-      <text class="menu-text">设置</text>
-      <text class="menu-arrow">›</text>
+  <!-- 宝宝信息 -->
+  <view class="section">
+    <view class="section-header">
+      <text class="section-title">👶 宝宝信息</text>
+      <text class="section-action" bindtap="editBaby">编辑</text>
     </view>
-    
-    <view class="menu-item">
-      <text class="menu-icon">💾</text>
-      <text class="menu-text">数据备份</text>
-      <text class="menu-arrow">›</text>
-    </view>
-    
-    <view class="menu-item">
-      <text class="menu-icon">ℹ️</text>
-      <text class="menu-text">关于我们</text>
-      <text class="menu-arrow">›</text>
+    <view class="baby-info">
+      <view class="baby-item">
+        <text class="baby-label">昵称</text>
+        <text class="baby-value">{{babyInfo.name || '未设置'}}</text>
+      </view>
+      <view class="baby-item">
+        <text class="baby-label">生日</text>
+        <text class="baby-value">{{babyInfo.birthday || '未设置'}}</text>
+      </view>
+      <view class="baby-item">
+        <text class="baby-label">月龄</text>
+        <text class="baby-value">{{babyInfo.age || '-'}}个月</text>
+      </view>
     </view>
   </view>
   
+  <!-- 预算管理 -->
+  <view class="section">
+    <view class="section-header">
+      <text class="section-title">💰 预算管理</text>
+      <text class="section-action" bindtap="editBudget">设置</text>
+    </view>
+    <view class="budget-info">
+      <view class="budget-item">
+        <text class="budget-label">月度预算</text>
+        <text class="budget-value">¥{{monthlyBudget}}</text>
+      </view>
+      <view class="budget-item">
+        <text class="budget-label">本月已花</text>
+        <text class="budget-value {{spentClass}}">¥{{spentThisMonth}}</text>
+      </view>
+      <view class="budget-item">
+        <text class="budget-label">剩余预算</text>
+        <text class="budget-value">¥{{budgetRemaining}}</text>
+      </view>
+      <!-- 预算进度条 -->
+      <view class="budget-progress">
+        <view class="progress-bar" style="width: {{budgetPercent}}%"></view>
+      </view>
+      <view class="budget-tip {{budgetTipClass}}">{{budgetTip}}</view>
+    </view>
+  </view>
+  
+  <!-- 功能菜单 -->
+  <view class="section">
+    <view class="menu-list">
+      <view class="menu-item" bindtap="exportData">
+        <text class="menu-icon">📤</text>
+        <text class="menu-text">导出账单</text>
+        <text class="menu-arrow">›</text>
+      </view>
+      <view class="menu-item" bindtap="clearCache">
+        <text class="menu-icon">🗑️</text>
+        <text class="menu-text">清除缓存</text>
+        <text class="menu-arrow">›</text>
+      </view>
+      <view class="menu-item" bindtap="feedback">
+        <text class="menu-icon">💬</text>
+        <text class="menu-text">意见反馈</text>
+        <text class="menu-arrow">›</text>
+      </view>
+    </view>
+  </view>
+  
+  <!-- 关于我们 -->
+  <view class="section">
+    <view class="menu-list">
+      <view class="menu-item" bindtap="aboutUs">
+        <text class="menu-icon">ℹ️</text>
+        <text class="menu-text">关于我们</text>
+        <text class="menu-arrow">›</text>
+      </view>
+      <view class="menu-item" bindtap="checkUpdate">
+        <text class="menu-icon">🔄</text>
+        <text class="menu-text">检查更新</text>
+        <text class="menu-badge" wx:if="{{hasUpdate}}">NEW</text>
+        <text class="menu-arrow">›</text>
+      </view>
+    </view>
+  </view>
+  
+  <!-- 版本信息 -->
   <view class="version-info">
-    <text>Version 1.1.0</text>
+    <text>Version {{version}}</text>
+    <text class="copyright">© 2026 宝宝购物记</text>
+  </view>
+  
+  <!-- 编辑宝宝弹窗 -->
+  <view class="dialog-mask" wx:if="{{showBabyDialog}}" bindtap="hideBabyDialog">
+    <view class="dialog" catchtap="true">
+      <view class="dialog-title">编辑宝宝信息</view>
+      <view class="dialog-content">
+        <view class="form-item">
+          <text class="form-label">昵称</text>
+          <input class="form-input" model:value="{{babyForm.name}}" placeholder="请输入宝宝昵称" />
+        </view>
+        <view class="form-item">
+          <text class="form-label">生日</text>
+          <picker class="form-picker" mode="date" value="{{babyForm.birthday}}" bindchange="onBirthdayChange">
+            <view class="picker-value">{{babyForm.birthday || '选择日期'}}</view>
+          </picker>
+        </view>
+      </view>
+      <view class="dialog-footer">
+        <button class="dialog-cancel" bindtap="hideBabyDialog">取消</button>
+        <button class="dialog-confirm" bindtap="saveBabyInfo">保存</button>
+      </view>
+    </view>
+  </view>
+  
+  <!-- 预算设置弹窗 -->
+  <view class="dialog-mask" wx:if="{{showBudgetDialog}}" bindtap="hideBudgetDialog">
+    <view class="dialog" catchtap="true">
+      <view class="dialog-title">设置月度预算</view>
+      <view class="dialog-content">
+        <view class="form-item">
+          <text class="form-label">预算金额（元）</text>
+          <input class="form-input" type="number" model:value="{{budgetForm.amount}}" placeholder="请输入预算金额" />
+        </view>
+      </view>
+      <view class="dialog-footer">
+        <button class="dialog-cancel" bindtap="hideBudgetDialog">取消</button>
+        <button class="dialog-confirm" bindtap="saveBudget">保存</button>
+      </view>
+    </view>
   </view>
 </view>

@@ -57,7 +57,6 @@ Page({
   // 计算统计数据
   async calculateStats() {
     try {
-      // 调用云函数获取统计数据
       const res = await wx.cloud.callFunction({
         name: 'stats',
         data: { action: 'getStats' }
@@ -71,27 +70,9 @@ Page({
           yesterdaySpent: stats.yesterday.spent,
           todayOrderCount: stats.today.count
         });
-      } else {
-        // 云函数失败，使用默认值
-        this.setData({
-          monthlyBudget: 2000,
-          spentThisMonth: 0,
-          todaySpent: 0,
-          yesterdaySpent: 0,
-          todayOrderCount: 0
-        });
       }
-      
     } catch (error) {
       console.error('计算统计失败:', error);
-      // 使用默认值
-      this.setData({
-        monthlyBudget: 2000,
-        spentThisMonth: 0,
-        todaySpent: 0,
-        yesterdaySpent: 0,
-        todayOrderCount: 0
-      });
     }
   },
 
@@ -102,7 +83,6 @@ Page({
     this.setData({ loading: true });
     
     try {
-      // 调用云函数获取记录列表
       const res = await wx.cloud.callFunction({
         name: 'record',
         data: {
@@ -133,26 +113,13 @@ Page({
             hasMore: list.length >= this.data.pageSize
           });
         }
-      } else {
-        // 云函数失败，显示空状态
-        this.setData({
-          recordList: [],
-          hasMore: false
-        });
       }
       
       wx.hideLoading();
     } catch (error) {
       console.error('加载记录失败:', error);
-      // 显示空状态
-      this.setData({
-        recordList: [],
-        hasMore: false
-      });
-      wx.showToast({
-        title: '加载失败',
-        icon: 'none'
-      });
+      this.setData({ recordList: [], hasMore: false });
+      wx.showToast({ title: '加载失败', icon: 'none' });
     }
     
     this.setData({ loading: false });
@@ -206,7 +173,6 @@ Page({
   // 执行删除
   async deleteRecord(id) {
     try {
-      // 调用云函数删除
       const res = await wx.cloud.callFunction({
         name: 'record',
         data: { 
@@ -217,25 +183,13 @@ Page({
       
       if (res.result && res.result.success) {
         const newList = this.data.recordList.filter(item => item._id !== id);
-        this.setData({
-          recordList: newList
-        });
-        
-        wx.showToast({
-          title: '删除成功',
-          icon: 'success'
-        });
-        
-        // 重新计算统计
+        this.setData({ recordList: newList });
+        wx.showToast({ title: '删除成功', icon: 'success' });
         this.calculateStats();
       }
-      
     } catch (error) {
       console.error('删除失败:', error);
-      wx.showToast({
-        title: '删除失败',
-        icon: 'none'
-      });
+      wx.showToast({ title: '删除失败', icon: 'none' });
     }
   },
 

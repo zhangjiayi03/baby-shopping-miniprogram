@@ -64,33 +64,19 @@ Page({
   // 加载记录详情
   async loadRecordDetail(recordId) {
     try {
-      // TODO: 调用云函数获取记录详情
-      // const res = await wx.cloud.callFunction({
-      //   name: 'record',
-      //   data: { action: 'get', id: recordId }
-      // });
+      const res = await wx.cloud.callFunction({
+        name: 'record',
+        data: { action: 'get', id: recordId }
+      });
       
-      // 模拟数据
-      const mockData = {
-        _id: recordId,
-        productName: '示例商品',
-        price: '99.00',
-        quantity: 1,
-        unitPrice: '99.00',
-        categoryId: 1,
-        platform: 'taobao',
-        orderTime: '2026-04-01',
-        imageUrl: '',
-        createTime: '2026-04-01 12:00:00'
-      };
-      
-      this.setRecordData(mockData);
+      if (res.result && res.result.success) {
+        this.setRecordData(res.result.data);
+      } else {
+        throw new Error('记录不存在');
+      }
     } catch (error) {
       console.error('加载记录详情失败:', error);
-      wx.showToast({
-        title: '加载失败',
-        icon: 'none'
-      });
+      wx.showToast({ title: '加载失败', icon: 'none' });
     }
   },
 
@@ -164,7 +150,6 @@ Page({
   async saveEdit() {
     const { editData } = this.data;
     
-    // 表单验证
     if (!editData.productName || !editData.productName.trim()) {
       wx.showToast({ title: '请输入商品名称', icon: 'none' });
       return;
@@ -183,7 +168,6 @@ Page({
     try {
       wx.showLoading({ title: '保存中...' });
       
-      // 准备更新数据
       const updateData = {
         productName: editData.productName.trim(),
         price: editData.price,
@@ -194,40 +178,36 @@ Page({
         updateTime: new Date().toISOString()
       };
       
-      // 计算单价
       updateData.unitPrice = (parseFloat(editData.price) / parseInt(editData.quantity)).toFixed(2);
       
-      // TODO: 调用云函数更新记录
-      // const res = await wx.cloud.callFunction({
-      //   name: 'record',
-      //   data: { 
-      //     action: 'update', 
-      //     id: this.data.recordId,
-      //     data: updateData 
-      //   }
-      // });
-      
-      // 模拟更新成功
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      wx.hideLoading();
-      wx.showToast({ title: '保存成功', icon: 'success' });
-      
-      // 更新页面显示
-      const category = this.data.categories[editData.categoryIndex];
-      const platform = this.data.platforms[editData.platformIndex];
-      
-      this.setData({
-        isEditing: false,
-        productName: updateData.productName,
-        price: updateData.price,
-        quantity: updateData.quantity,
-        unitPrice: updateData.unitPrice,
-        categoryName: category.name,
-        platformName: platform.name,
-        orderTime: updateData.orderTime
+      const res = await wx.cloud.callFunction({
+        name: 'record',
+        data: { 
+          action: 'update', 
+          id: this.data.recordId,
+          data: updateData 
+        }
       });
       
+      wx.hideLoading();
+      if (res.result && res.result.success) {
+        wx.showToast({ title: '保存成功', icon: 'success' });
+        const category = this.data.categories[editData.categoryIndex];
+        const platform = this.data.platforms[editData.platformIndex];
+        
+        this.setData({
+          isEditing: false,
+          productName: updateData.productName,
+          price: updateData.price,
+          quantity: updateData.quantity,
+          unitPrice: updateData.unitPrice,
+          categoryName: category.name,
+          platformName: platform.name,
+          orderTime: updateData.orderTime
+        });
+      } else {
+        throw new Error('更新失败');
+      }
     } catch (error) {
       console.error('保存编辑失败:', error);
       wx.hideLoading();
@@ -245,22 +225,18 @@ Page({
           try {
             wx.showLoading({ title: '删除中...' });
             
-            // TODO: 调用云函数删除记录
-            // const res = await wx.cloud.callFunction({
-            //   name: 'record',
-            //   data: { action: 'delete', id: this.data.recordId }
-            // });
-            
-            // 模拟删除
-            await new Promise(resolve => setTimeout(resolve, 500));
+            const res = await wx.cloud.callFunction({
+              name: 'record',
+              data: { action: 'delete', id: this.data.recordId }
+            });
             
             wx.hideLoading();
-            wx.showToast({ title: '删除成功', icon: 'success' });
-            
-            setTimeout(() => {
-              wx.navigateBack();
-            }, 1500);
-            
+            if (res.result && res.result.success) {
+              wx.showToast({ title: '删除成功', icon: 'success' });
+              setTimeout(() => wx.navigateBack(), 1500);
+            } else {
+              throw new Error('删除失败');
+            }
           } catch (error) {
             console.error('删除记录失败:', error);
             wx.hideLoading();

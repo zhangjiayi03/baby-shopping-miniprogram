@@ -127,66 +127,45 @@ Page({
   // 保存记录
   async saveRecord() {
     if (!this.data.recognitionResult) {
-      wx.showToast({
-        title: '没有可保存的数据',
-        icon: 'none'
-      });
+      wx.showToast({ title: '没有可保存的数据', icon: 'none' });
       return;
     }
     
     wx.showLoading({ title: '保存中...' });
     
     try {
-      // 如果有上传图片，先上传图片到云存储
       let imageUrl = '';
       if (this.data.imageList.length > 0) {
-        // TODO: 上传图片到云存储
-        // const uploadRes = await wx.cloud.uploadFile({
-        //   cloudPath: `records/${Date.now()}_${Math.random()}.jpg`,
-        //   filePath: this.data.imageList[0]
-        // });
-        // imageUrl = uploadRes.fileID;
+        const uploadRes = await wx.cloud.uploadFile({
+          cloudPath: `records/${Date.now()}_${Math.random()}.jpg`,
+          filePath: this.data.imageList[0]
+        });
+        imageUrl = uploadRes.fileID;
       }
       
-      // 调用云函数保存记录
-      // const res = await wx.cloud.callFunction({
-      //   name: 'record',
-      //   data: {
-      //     action: 'create',
-      //     data: {
-      //       ...this.data.recognitionResult,
-      //       imageUrl: imageUrl
-      //     }
-      //   }
-      // });
-      
-      // 模拟保存
-      await new Promise(resolve => setTimeout(resolve, 500));
+      const res = await wx.cloud.callFunction({
+        name: 'record',
+        data: {
+          action: 'create',
+          data: {
+            ...this.data.recognitionResult,
+            imageUrl: imageUrl
+          }
+        }
+      });
       
       wx.hideLoading();
-      wx.showToast({
-        title: '保存成功',
-        icon: 'success'
-      });
-      
-      // 清空数据
-      this.setData({
-        imageList: [],
-        recognitionResult: null
-      });
-      
-      // 返回首页或列表页
-      setTimeout(() => {
-        wx.navigateBack();
-      }, 1500);
-      
+      if (res.result && res.result.success) {
+        wx.showToast({ title: '保存成功', icon: 'success' });
+        this.setData({ imageList: [], recognitionResult: null });
+        setTimeout(() => wx.navigateBack(), 1500);
+      } else {
+        throw new Error(res.result?.message || '保存失败');
+      }
     } catch (error) {
       console.error('保存失败:', error);
       wx.hideLoading();
-      wx.showToast({
-        title: '保存失败，请重试',
-        icon: 'none'
-      });
+      wx.showToast({ title: '保存失败，请重试', icon: 'none' });
     }
   },
 
