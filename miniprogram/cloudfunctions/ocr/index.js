@@ -160,17 +160,39 @@ function parseOrder(texts) {
     console.log('找到商品名:', productName, '分数:', candidateLines[0].score)
   }
 
-  // 提取价格 - 找所有价格中最大的
+  // 提取价格 - 优先找商品行附近的价格，其次找总价
   let prices = []
+  let totalPrice = null
+  let unitPrice = null
+  
   for (const text of texts) {
     const p = extractPrice(text)
     if (p !== null) {
-      prices.push(p)
+      prices.push({ price: p, text })
+      
+      // 检查是否是总价关键词
+      if (/(实付 | 应付 | 合计 | 总额 | 共|总计)/i.test(text)) {
+        totalPrice = p
+      }
+      // 检查是否是单价关键词
+      if (/(单价 | 售价 | 价格|¥|￥)/i.test(text) && !/(实付 | 应付 | 合计)/i.test(text)) {
+        unitPrice = p
+      }
     }
   }
-  if (prices.length > 0) {
-    price = Math.max(...prices)
-    console.log('找到价格:', price, '候选:', prices)
+  
+  // 优先级：单价 > 总价 > 最大值
+  if (unitPrice !== null) {
+    price = unitPrice
+    console.log('使用单价:', price)
+  } else if (totalPrice !== null) {
+    price = totalPrice
+    console.log('使用总价:', price)
+  } else if (prices.length > 0) {
+    // 如果没有关键词，取第二大价格（最大的是总价）
+    prices.sort((a, b) => b.price - a.price)
+    price = prices.length > 1 ? prices[1].price : prices[0].price
+    console.log('使用推测价格:', price, '候选:', prices.map(p => p.price))
   }
 
   return { productName, price, quantity }
