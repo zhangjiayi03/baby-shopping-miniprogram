@@ -99,10 +99,16 @@ Page({
         const platformObj = this.data.platforms.find(p => p.id === platform)
         const platformName = platformObj ? platformObj.name : '京东'
         
+        // 确保价格是有效的数字
+        let priceValue = parseFloat(ocrData.data.price)
+        if (isNaN(priceValue) || priceValue < 0) {
+          priceValue = 0
+        }
+        
         const result = {
           productName: ocrData.data.productName || '未识别商品',
-          price: ocrData.data.price.toString() || '0.00',
-          quantity: ocrData.data.quantity || 1,
+          price: priceValue.toFixed(2),  // 固定 2 位小数
+          quantity: parseInt(ocrData.data.quantity) || 1,
           categoryId: categoryId,
           categoryName: categoryName,
           platform: platform,

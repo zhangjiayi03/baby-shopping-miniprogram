@@ -37,6 +37,8 @@
           <text class="info-label">价格：</text>
           <text class="info-value price">¥{{recognitionResult.price}}</text>
         </view>
+        <!-- 调试信息 -->
+        <!-- <view class="debug">原始价格：{{recognitionResult.price}}</view> -->
         <view class="info-row">
           <text class="info-label">数量：</text>
           <text class="info-value">{{recognitionResult.quantity}}</text>
