@@ -88,17 +88,20 @@ Page({
       
       if (ocrData.success) {
         console.log('OCR 识别成功:', ocrData.data)
+        const result = {
+          productName: ocrData.data.productName || '未识别商品',
+          price: ocrData.data.price.toString() || '0.00',
+          quantity: ocrData.data.quantity || 1,
+          categoryId: ocrData.data.categoryId || 7,
+          platform: ocrData.data.platform || 'jd',
+          orderTime: new Date().toISOString().split('T')[0]
+        }
+        console.log('准备设置识别结果:', result)
         this.setData({
-          recognitionResult: {
-            productName: ocrData.data.productName || '未识别商品',
-            price: ocrData.data.price.toString() || '0.00',
-            quantity: ocrData.data.quantity || 1,
-            categoryId: ocrData.data.categoryId || 7,
-            platform: ocrData.data.platform || 'jd',
-            orderTime: new Date().toISOString().split('T')[0]
-          }
-        });
-        console.log('识别结果:', this.data.recognitionResult)
+          recognitionResult: result
+        }, () => {
+          console.log('✅ setData 完成，当前识别结果:', this.data.recognitionResult)
+        })
       } else {
         throw new Error(ocrData.error || '识别失败');
       }

@@ -259,7 +259,7 @@ async function main(event, context) {
     
     // 识别分类
     const categoryId = recognizeCategory(parsedResult.productName || '')
-    console.log('平台:', platform, '分类 ID:', categoryId)
+    console.log('📊 最终结果 - 平台:', platform, '分类 ID:', categoryId, '商品名:', parsedResult.productName)
 
     const response = {
       success: true,
@@ -273,7 +273,7 @@ async function main(event, context) {
       }
     }
     
-    console.log('返回结果:', JSON.stringify(response))
+    console.log('✅ 返回给前端的数据:', JSON.stringify(response))
     return response
 
   } catch (error) {
