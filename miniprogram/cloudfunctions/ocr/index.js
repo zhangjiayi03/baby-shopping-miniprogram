@@ -107,51 +107,63 @@ function parseOrder(texts) {
     console.log('找到商品名:', productName, '分数:', candidateLines[0].score)
   }
 
-  // ========== 价格提取 - 修复关键词匹配 ==========
-  let actualPayPrice = null  // 实付/到手价
-  let totalPrice = null      // 合计/总额
+  // ========== 价格提取 - 优先提取关键词后的数字 ==========
+  let actualPayPrice = null
+  let totalPrice = null
   let allPrices = []
   
   for (const text of texts) {
     // 排除时间格式
     if (/^\d{1,2}:\d{2}$/.test(text.trim())) continue
     
-    // 检查关键词（先检查，再提取价格）
-    const hasActualPay = text.includes('实付') || text.includes('到手')
-    const hasTotal = text.includes('合计') || text.includes('总额') || text.includes('共减')
+    // 提取价格 - 支持多种格式
+    const extractPricesFromText = (txt) => {
+      const prices = []
+      // 格式 1: 实付：9.9 / 到手价 9.9
+      const keywordMatch = txt.match(/(?:实付 | 到手 | 应付 | 合计 | 共减|总额)[：:\s]*(\d+\.?\d*)/i)
+      if (keywordMatch) {
+        prices.push(parseFloat(keywordMatch[1]))
+      }
+      // 格式 2: ￥9.9 / ¥9.9
+      const symbolMatch = txt.matchAll(/(?:￥|¥)\s*(\d+\.?\d*)/g)
+      for (const m of symbolMatch) {
+        prices.push(parseFloat(m[1]))
+      }
+      // 格式 3: 9.9 元
+      const yuanMatch = txt.match(/(\d+\.?\d*)\s*元/i)
+      if (yuanMatch) {
+        prices.push(parseFloat(yuanMatch[1]))
+      }
+      return prices
+    }
     
-    // 提取所有价格
-    const priceMatches = text.matchAll(/(?:￥|¥)\s*(\d+\.?\d*)/g)
-    for (const match of priceMatches) {
-      const p = parseFloat(match[1])
+    const prices = extractPricesFromText(text)
+    prices.forEach(p => {
       if (p > 0.1 && p < 10000) {
         allPrices.push({ price: p, text })
         
-        // 检查关键词
-        if (hasActualPay) {
+        if (text.includes('实付') || text.includes('到手')) {
           actualPayPrice = p
           console.log('💰 找到实付/到手价:', p, '|', text)
         }
-        if (hasTotal && !hasActualPay) {
+        if ((text.includes('合计') || text.includes('总额') || text.includes('共减')) && !actualPayPrice) {
           totalPrice = p
           console.log('💰 找到合计/总额:', p, '|', text)
         }
       }
-    }
+    })
   }
   
-  console.log('📊 所有价格:', allPrices.map(p => p.price))
-  console.log('实付价:', actualPayPrice, '合计价:', totalPrice)
+  console.log('📊 所有价格候选:', allPrices.map(p => ({ price: p.price, text: p.text.substring(0, 30) })))
   
-  // 选择价格
+  // 选择价格：实付 > 合计 > 最大值
   if (actualPayPrice !== null) {
     price = actualPayPrice
-    console.log('✅ 使用实付/到手价:', price)
+    console.log('✅ 使用实付价格:', price)
   } else if (totalPrice !== null) {
     price = totalPrice
-    console.log('✅ 使用合计/总额:', price)
+    console.log('✅ 使用合计价格:', price)
   } else if (allPrices.length > 0) {
-    // 取合理范围内的最大值
     const valid = allPrices.filter(p => p.price >= 0.1 && p.price <= 500)
     valid.sort((a, b) => b.price - a.price)
     if (valid.length > 0) {
@@ -166,10 +178,10 @@ function parseOrder(texts) {
 function recognizeCategory(productName) {
   if (!productName) return 7
   
-  // 分类关键词映射
+  // 分类关键词映射（按优先级排序）
   const categoryMap = {
+    '2': ['尿布', '纸尿裤', '尿不湿', '湿巾', '洗护', '沐浴', '护肤', '爽身粉', '护臀', '爽身露', '润肤露', '桃子水', '马桶垫', '产妇', '一次性', '抗菌', '旅行', '酒店', '月子', '护理', '清洁', '洗衣', '柔顺', '消毒', '浴盆', '浴巾', '毛巾', '口水巾', '纸巾', '抽纸', '柔纸巾', '棉柔巾', '洗脸巾', '纸面巾', '手口湿巾'],
     '1': ['奶粉', '奶瓶', '辅食', '米粉', '果泥', '营养', '喂养', '母乳', '安抚奶嘴', '口水', '吸管杯', '学饮杯', '围嘴', '饭兜', '餐椅', '碗勺', '餐具'],
-    '2': ['尿布', '纸尿裤', '尿不湿', '湿巾', '洗护', '沐浴', '护肤', '爽身粉', '护臀', '爽身露', '润肤露', '桃子水', '马桶垫', '产妇', '一次性', '抗菌', '旅行', '酒店', '月子', '护理', '清洁', '洗衣', '柔顺', '消毒', '浴盆', '浴巾', '毛巾', '口水巾', '纸巾', '抽纸', '柔纸巾', '棉柔巾', '洗脸巾'],
     '3': ['衣服', '裤子', '鞋', '帽', '袜', '连体衣', '套装', '棉服', '外套', '内衣', '睡衣', '睡袋', '抱被', '包被', '学步鞋', '机能鞋'],
     '4': ['玩具', '积木', '摇铃', '绘本', '图书', '拼图', '音乐', '游戏', '玩偶', '毛绒', '球类', '爬行', '健身架', '游戏垫', '帐篷'],
     '5': ['疫苗', '体温', '药', '保健品', '钙', '维生素', '医疗', '退热', '感冒', '咳嗽', '腹泻', '益生菌', 'DHA', '鱼肝油'],
@@ -180,13 +192,13 @@ function recognizeCategory(productName) {
   for (const [categoryId, keywords] of Object.entries(categoryMap)) {
     for (const keyword of keywords) {
       if (productName.includes(keyword)) {
-        console.log('匹配到分类:', categoryId, '关键词:', keyword)
+        console.log('✅ 匹配到分类:', categoryId, '(' + (categoryId === '2' ? '洗护' : categoryId === '1' ? '喂养' : categoryId === '3' ? '服装' : categoryId === '4' ? '玩具' : categoryId === '5' ? '医疗' : '教育') + ')', '关键词:', keyword)
         return parseInt(categoryId)
       }
     }
   }
   
-  console.log('未匹配到分类，返回默认值 7')
+  console.log('⚠️ 未匹配到分类，返回默认值 7（其他）')
   return 7
 }
 
