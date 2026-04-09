@@ -160,7 +160,7 @@ Page({
         };
 
         const resultList = [...this.data.resultList];
-        resultList[index] = {
+        result[index] = {
           index,
           status: 'success',
           icon: '✅',
@@ -170,6 +170,8 @@ Page({
             price: ocrData.data.price || '0.00',
             orderTime: ocrData.data.orderTime,
             quantity: ocrData.data.quantity || 1,
+            platform: ocrData.data.platform || 'other',
+            categoryId: ocrData.data.categoryId || 7,
             imagePath: fileID
           },
           error: null
