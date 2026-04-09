@@ -1,0 +1,5 @@
+{
+  "usingComponents": {
+    "edit-dialog": "/components/edit-dialog/edit-dialog"
+  }
+}
