@@ -88,8 +88,20 @@ Page({
       
       if (ocrData.success) {
         console.log('OCR 识别成功:', ocrData.data)
-        const categoryId = ocrData.data.categoryId || 7
+        
+        // 严格验证价格 - 必须是有效数字
+        let priceValue = parseFloat(ocrData.data.price)
+        console.log('原始价格:', ocrData.data.price, '解析后:', priceValue)
+        if (isNaN(priceValue) || priceValue < 0 || priceValue > 10000) {
+          console.log('⚠️ 价格无效，使用默认值 0')
+          priceValue = 0
+        }
+        
+        // 确保分类 ID 是数字
+        const categoryId = parseInt(ocrData.data.categoryId) || 7
         const platform = ocrData.data.platform || 'jd'
+        
+        console.log('分类 ID:', categoryId, '平台:', platform)
         
         // 计算分类名称
         const categoryObj = this.data.categories.find(c => c.id === categoryId)
@@ -99,15 +111,11 @@ Page({
         const platformObj = this.data.platforms.find(p => p.id === platform)
         const platformName = platformObj ? platformObj.name : '京东'
         
-        // 确保价格是有效的数字
-        let priceValue = parseFloat(ocrData.data.price)
-        if (isNaN(priceValue) || priceValue < 0) {
-          priceValue = 0
-        }
+        console.log('分类名称:', categoryName, '平台名称:', platformName)
         
         const result = {
           productName: ocrData.data.productName || '未识别商品',
-          price: priceValue.toFixed(2),  // 固定 2 位小数
+          price: priceValue.toFixed(2),
           quantity: parseInt(ocrData.data.quantity) || 1,
           categoryId: categoryId,
           categoryName: categoryName,
@@ -115,11 +123,16 @@ Page({
           platformName: platformName,
           orderTime: new Date().toISOString().split('T')[0]
         }
-        console.log('准备设置识别结果:', result)
+        console.log('📦 最终识别结果:', result)
         this.setData({
           recognitionResult: result
         }, () => {
-          console.log('✅ setData 完成，当前识别结果:', this.data.recognitionResult)
+          console.log('✅ setData 完成')
+          console.log('当前 recognitionResult:', {
+            price: this.data.recognitionResult.price,
+            categoryName: this.data.recognitionResult.categoryName,
+            platformName: this.data.recognitionResult.platformName
+          })
         })
       } else {
         throw new Error(ocrData.error || '识别失败');
