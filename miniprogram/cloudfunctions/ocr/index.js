@@ -236,11 +236,11 @@ async function main(event, context) {
       }
     }
 
-    // 判断平台 - 按优先级检查
-    let platform = 'jd'  // 默认京东
+    // 判断平台 - 根据订单特征
+    let platform = 'other'  // 默认未知
     const allText = texts.join(' ')
     
-    // 明确关键词优先
+    // 检查明确的平台关键词
     if (allText.includes('淘宝') || allText.includes('天猫')) {
       platform = 'taobao'
     } else if (allText.includes('京东') || allText.includes('JD') || allText.includes('京')) {
@@ -252,7 +252,7 @@ async function main(event, context) {
     } else if (allText.includes('美团') || allText.includes('美团外卖')) {
       platform = 'meituan'
     }
-    // 默认就是京东，不需要额外判断
+    // 如果没有明确关键词，保持 'other'，让用户手动选择
     
     // 解析订单
     const parsedResult = parseOrder(texts)
