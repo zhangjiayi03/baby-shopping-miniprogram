@@ -329,17 +329,36 @@ Page({
   async saveRecord(e) {
     const index = e.currentTarget.dataset.index;
     const { resultList } = this.data;
-    const item = resultList[index];
+    const item = result[index];
 
-    console.log('💾 准备保存，index:', index, 'item:', item);
+    console.log('💾 准备保存，index:', index);
+    console.log('完整 item:', JSON.stringify(item, null, 2));
+    console.log('item.data:', item?.data);
 
-    if (!item || !item.data) {
-      console.error('❌ 数据为空，无法保存');
+    // 安全检查
+    if (!item) {
+      console.error('❌ item 为空');
       wx.showToast({ title: '数据为空，请重试', icon: 'none' });
       return;
     }
 
-    console.log('保存数据:', item.data);
+    if (!item.data) {
+      console.error('❌ item.data 为空，当前 item:', item);
+      wx.showToast({ title: '数据格式错误，请重试', icon: 'none' });
+      return;
+    }
+
+    // 确保数据存在
+    const dataToSave = {
+      productName: item.data.productName || '未命名商品',
+      price: parseFloat(item.data.price) || 0,
+      quantity: parseInt(item.data.quantity) || 1,
+      categoryId: parseInt(item.data.categoryId) || 7,
+      platform: item.data.platform || 'other',
+      orderTime: item.data.orderTime || new Date().toISOString().split('T')[0]
+    };
+
+    console.log('实际保存的数据:', dataToSave);
 
     wx.showLoading({ title: '保存中...' });
 
@@ -348,14 +367,7 @@ Page({
         name: 'record',
         data: {
           action: 'create',
-          record: {
-            productName: item.data.productName,
-            price: parseFloat(item.data.price) || 0,
-            quantity: parseInt(item.data.quantity) || 1,
-            categoryId: parseInt(item.data.categoryId) || 7,
-            platform: item.data.platform || 'other',
-            orderTime: item.data.orderTime || new Date().toISOString().split('T')[0]
-          }
+          record: dataToSave
         }
       });
 
@@ -363,7 +375,7 @@ Page({
 
       if (res.result && res.result.success) {
         // 更新状态为已保存
-        resultList[index] = {
+        result[index] = {
           ...item,
           status: 'saved',
           icon: '💾',
