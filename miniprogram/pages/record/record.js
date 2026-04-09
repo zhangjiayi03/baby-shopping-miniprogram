@@ -132,10 +132,17 @@ Page({
 
   // 显示编辑弹窗
   showEditDialog() {
+    console.log('🔧 点击编辑按钮，当前 recognitionResult:', this.data.recognitionResult)
+    if (!this.data.recognitionResult) {
+      wx.showToast({ title: '没有可编辑的数据', icon: 'none' })
+      return
+    }
     this.setData({
       editDialogData: this.data.recognitionResult,
       editDialogVisible: true
-    });
+    }, () => {
+      console.log('✅ 编辑弹窗已打开，editDialogVisible:', this.data.editDialogVisible)
+    })
   },
 
   // 隐藏编辑弹窗
