@@ -1,4 +1,4 @@
-// 云函数入口文件 - 百度 OCR 识别（优化版）
+// 云函数入口文件 - 百度 OCR 识别（优化版 v2）
 const cloud = require('wx-server-sdk')
 const axios = require('axios')
 
@@ -70,7 +70,7 @@ async function baiduOCR(imageBase64, accessToken) {
     }
   )
 
-  console.log('百度 OCR 返回:', JSON.stringify(res.data).substring(0, 300))
+  console.log('百度 OCR 返回:', JSON.stringify(res.data).substring(0, 500))
   return res.data
 }
 
@@ -93,11 +93,11 @@ async function downloadImageFromCloudStorage(imgUrl) {
 }
 
 /**
- * 解析订单（优化版 - 更宽松的匹配规则）
+ * 解析订单（优化版 v2 - 更严格的价格匹配）
  */
 function parseOrder(texts) {
   console.log('开始解析订单，文字行数:', texts.length)
-  console.log('文字内容:', texts.slice(0, 10).join(' | '))
+  console.log('前 10 行内容:', texts.slice(0, 10).join(' | '))
   
   let productName = ''
   let price = 0
@@ -116,20 +116,23 @@ function parseOrder(texts) {
     return false
   }
 
-  // 提取价格 - 更宽松的匹配
+  // 提取价格 - 更严格的匹配
   const extractPrice = (text) => {
+    // 排除时间格式（如 19:53）
+    if (/^\d{1,2}:\d{2}$/.test(text.trim())) return null
+    
     const patterns = [
-      /(?:实付 | 应付 | 合计 | 总额 | 金额|￥|¥)\s*[：:]\s*(\d+\.?\d*)/,
-      /[￥¥]\s*(\d+\.?\d*)/,
-      /(\d+\.?\d*)\s*元/,
-      /^\s*(\d+\.?\d*)\s*$/
+      /(?:实付 | 应付 | 合计 | 总额 | 金额|到手)\s*[：:]\s*(\d+\.?\d*)/,  // 实付：99.00
+      /[￥¥]\s*(\d+\.?\d*)/,  // ¥99.00
+      /(\d+\.?\d*)\s*元/,  // 99.00 元
+      /^\s*(\d+\.?\d*)\s*$/  // 纯数字行
     ]
     
     for (const pattern of patterns) {
       const match = text.match(pattern)
       if (match) {
         const possiblePrice = parseFloat(match[1])
-        if (possiblePrice > 1 && possiblePrice < 10000) {
+        if (possiblePrice > 0.1 && possiblePrice < 10000) {
           return possiblePrice
         }
       }
@@ -137,7 +140,7 @@ function parseOrder(texts) {
     return null
   }
 
-  // 查找商品名 - 优先找最长的有意义的行
+  // 查找商品名
   let candidateLines = []
   for (const text of texts) {
     if (isAddressOrPhone(text)) continue
@@ -160,48 +163,49 @@ function parseOrder(texts) {
     console.log('找到商品名:', productName, '分数:', candidateLines[0].score)
   }
 
-  // 提取价格 - 优先找"实付"、"到手"等关键词附近的价格
-  let actualPayPrice = null  // 实付价格
+  // 提取价格 - 分类收集
+  let actualPayPrice = null  // 实付价格（优先级最高）
   let totalPrice = null      // 合计价格
-  let unitPrice = null       // 单价
   let prices = []
   
   for (const text of texts) {
+    // 排除时间格式
+    if (/^\d{1,2}:\d{2}$/.test(text.trim())) continue
+    
     const p = extractPrice(text)
     if (p !== null) {
       prices.push({ price: p, text })
       
-      // 优先级 1: 实付/到手价（用户实际支付的）
-      if (/(实付 | 到手|实际支付)/i.test(text)) {
+      // 实付/到手价（优先级 1）
+      if (/(实付 | 到手)/i.test(text)) {
         actualPayPrice = p
+        console.log('💰 找到实付价格:', p, '| 原文:', text)
       }
-      // 优先级 2: 合计/总额
-      if (/(合计 | 总额 | 共|总计)/i.test(text) && !/(实付 | 到手)/i.test(text)) {
+      // 合计/总额（优先级 2）
+      if (/(合计 | 总额 | 共 | 总计)/i.test(text) && !/(实付 | 到手)/i.test(text)) {
         totalPrice = p
-      }
-      // 优先级 3: 单价/售价（带¥符号但不是实付）
-      if (/(单价 | 售价|￥|¥)/i.test(text) && !/(实付 | 到手 | 合计 | 共)/i.test(text)) {
-        unitPrice = p
+        console.log('💰 找到合计价格:', p, '| 原文:', text)
       }
     }
   }
   
-  // 按优先级选择：实付 > 合计 > 单价 > 推测
+  console.log('📊 所有价格候选:', prices.map(p => ({ price: p.price, text: p.text.substring(0, 40) })))
+  
+  // 选择价格：实付 > 合计 > 推测
   if (actualPayPrice !== null) {
     price = actualPayPrice
-    console.log('使用实付价格:', price)
+    console.log('✅ 使用实付价格:', price)
   } else if (totalPrice !== null) {
     price = totalPrice
-    console.log('使用合计价格:', price)
-  } else if (unitPrice !== null) {
-    price = unitPrice
-    console.log('使用单价:', price)
+    console.log('✅ 使用合计价格:', price)
   } else if (prices.length > 0) {
-    // 都没有，取合理范围内的价格（1-500 元之间）
-    const validPrices = prices.filter(p => p.price >= 1 && p.price <= 500)
+    // 取合理范围内（0.1-500 元）的最大值
+    const validPrices = prices.filter(p => p.price >= 0.1 && p.price <= 500)
     validPrices.sort((a, b) => b.price - a.price)
-    price = validPrices.length > 0 ? validPrices[0].price : prices[0].price
-    console.log('使用推测价格:', price, '候选:', prices.map(p => p.price))
+    if (validPrices.length > 0) {
+      price = validPrices[0].price
+      console.log('✅ 使用推测价格:', price)
+    }
   }
 
   return { productName, price, quantity }
