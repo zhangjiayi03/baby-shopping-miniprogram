@@ -174,8 +174,10 @@ Page({
       });
 
       const ocrData = ocrRes.result;
+      console.log('🔍 OCR 返回结果:', ocrData);
 
-      if (ocrData.success) {
+      if (ocrData && ocrData.success) {
+        console.log('✅ 识别成功:', ocrData.data);
         // 更新状态为成功
         const statusList = [...this.data.statusList];
         statusList[index] = {
@@ -203,7 +205,8 @@ Page({
 
         this.setData({ statusList, resultList });
       } else {
-        throw new Error(ocrData.message || '识别失败');
+        console.error('❌ 识别失败，错误信息:', ocrData);
+        throw new Error(ocrData?.error || ocrData?.message || '识别失败，请重试');
       }
 
       // 删除临时文件
