@@ -407,7 +407,7 @@ Page({
    */
   async saveAll() {
     const { resultList } = this.data;
-    const successItems = resultList.filter(item => item.status === 'success');
+    const successItems = resultList.filter(item => item.status === 'success' && item.data);
 
     if (successItems.length === 0) {
       wx.showToast({
@@ -425,25 +425,43 @@ Page({
     let savedCount = 0;
     const savePromises = successItems.map(async (item) => {
       try {
+        // 确保数据存在
+        if (!item.data) {
+          console.error(`跳过第 ${item.index + 1} 条：数据为空`);
+          return;
+        }
+
+        const dataToSave = {
+          productName: item.data.productName || '未命名商品',
+          price: parseFloat(item.data.price) || 0,
+          quantity: parseInt(item.data.quantity) || 1,
+          categoryId: parseInt(item.data.categoryId) || 7,
+          platform: item.data.platform || 'other',
+          orderTime: item.data.orderTime || new Date().toISOString().split('T')[0]
+        };
+
         const res = await wx.cloud.callFunction({
           name: 'record',
           data: {
             action: 'create',
-            record: item.data
+            record: dataToSave
           }
         });
 
-        if (res.result.success) {
+        if (res.result && res.result.success) {
           savedCount++;
           // 更新状态
           const newList = [...this.data.resultList];
-          newList[item.index] = {
-            ...item,
-            status: 'saved',
-            icon: '💾',
-            statusText: '已保存'
-          };
-          this.setData({ resultList: newList });
+          const targetIndex = newList.findIndex(i => i.index === item.index);
+          if (targetIndex >= 0) {
+            newList[targetIndex] = {
+              ...item,
+              status: 'saved',
+              icon: '💾',
+              statusText: '已保存'
+            };
+            this.setData({ resultList: newList });
+          }
         }
       } catch (err) {
         console.error(`保存第 ${item.index + 1} 条记录失败:`, err);
