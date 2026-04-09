@@ -205,15 +205,21 @@ Page({
 
   // 获取分类名称
   getCategoryName(categoryId) {
-    if (!categoryId) return '其他';  // 默认值
-    const category = this.data.categories.find(c => c.id === categoryId);
-    return category ? category.name : '其他';
+    console.log('getCategoryName 被调用，categoryId:', categoryId, '类型:', typeof categoryId)
+    if (!categoryId) return '其他'
+    // 确保类型匹配（categoryId 可能是字符串）
+    const categoryIdNum = parseInt(categoryId)
+    const category = this.data.categories.find(c => c.id === categoryIdNum)
+    console.log('查找分类结果:', category)
+    return category ? category.name : '其他'
   },
 
   // 获取平台名称
   getPlatformName(platform) {
-    if (!platform) return '京东';  // 默认值
-    const platformItem = this.data.platforms.find(p => p.id === platform);
-    return platformItem ? platformItem.name : '京东';
+    console.log('getPlatformName 被调用，platform:', platform)
+    if (!platform) return '京东'
+    const platformItem = this.data.platforms.find(p => p.id === platform)
+    console.log('查找平台结果:', platformItem)
+    return platformItem ? platformItem.name : '京东'
   }
 });
