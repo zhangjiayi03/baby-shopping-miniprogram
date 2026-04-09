@@ -288,17 +288,29 @@
 }
 
 .result-actions {
-  text-align: right;
+  display: flex;
+  gap: 16rpx;
+  justify-content: flex-end;
+  align-items: center;
 }
 
+.edit-btn,
 .save-btn {
   display: inline-block;
   padding: 12rpx 32rpx;
-  background: #667eea;
-  color: #fff;
   font-size: 26rpx;
   border-radius: 20rpx;
   border: none;
+}
+
+.edit-btn {
+  background: #f0f0f0;
+  color: #666;
+}
+
+.save-btn {
+  background: #667eea;
+  color: #fff;
 }
 
 .save-all-btn {

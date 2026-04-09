@@ -210,12 +210,31 @@ Page({
   },
 
   /**
+   * 编辑单条记录
+   */
+  editRecord(e) {
+    const index = e.currentTarget.dataset.index;
+    const { resultList } = this.data;
+    const item = result[index];
+
+    if (!item.data) {
+      return;
+    }
+
+    // 显示编辑弹窗（使用 record 页面的 edit-dialog 组件）
+    // 简单实现：跳转到 record 页面并传递数据
+    wx.navigateTo({
+      url: `/pages/record/record?editIndex=${index}&editData=${encodeURIComponent(JSON.stringify(item.data))}`
+    });
+  },
+
+  /**
    * 保存单条记录
    */
   async saveRecord(e) {
     const index = e.currentTarget.dataset.index;
     const { resultList } = this.data;
-    const item = resultList[index];
+    const item = result[index];
 
     if (!item.data) {
       return;
@@ -234,7 +253,7 @@ Page({
 
       if (res.result.success) {
         // 更新状态为已保存
-        resultList[index] = {
+        result[index] = {
           ...item,
           status: 'saved',
           icon: '💾',

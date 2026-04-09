@@ -67,6 +67,7 @@
           <text class="error-text">{{item.error}}</text>
         </view>
         <view class="result-actions" wx:if="{{item.status === 'success'}}">
+          <button class="edit-btn" bindtap="editRecord" data-index="{{index}}">编辑</button>
           <button class="save-btn" bindtap="saveRecord" data-index="{{index}}">保存</button>
         </view>
       </view>
