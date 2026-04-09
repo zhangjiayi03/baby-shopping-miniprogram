@@ -329,7 +329,7 @@ Page({
   async saveRecord(e) {
     const index = e.currentTarget.dataset.index;
     const { resultList } = this.data;
-    const item = result[index];
+    const item = resultList[index];
 
     if (!item.data) {
       return;
@@ -348,7 +348,7 @@ Page({
 
       if (res.result.success) {
         // 更新状态为已保存
-        result[index] = {
+        resultList[index] = {
           ...item,
           status: 'saved',
           icon: '💾',
