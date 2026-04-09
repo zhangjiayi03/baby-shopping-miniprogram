@@ -1,4 +1,4 @@
-// 云函数入口文件 - 百度 OCR 识别（支持云存储 URL）
+// 云函数入口文件 - 百度 OCR 识别（优化版）
 const cloud = require('wx-server-sdk')
 const axios = require('axios')
 
@@ -6,10 +6,9 @@ cloud.init({
   env: cloud.DYNAMIC_CURRENT_ENV
 })
 
-// 百度 OCR 配置 - 从云函数环境变量读取
-// 在云函数控制台设置：BAIDU_API_KEY 和 BAIDU_SECRET_KEY
-const BAIDU_API_KEY = process.env.BAIDU_API_KEY || 'aWb1o2tbEqXuH2TN41iUuhIt'
-const BAIDU_SECRET_KEY = process.env.BAIDU_SECRET_KEY || 'TLwVw2OCU5JoQtjS56HI5OcGVgihlfqH'
+// 百度 OCR 配置
+const BAIDU_API_KEY = 'aWb1o2tbEqXuH2TN41iUuhIt'
+const BAIDU_SECRET_KEY = 'TLwVw2OCU5JoQtjS56HI5OcGVgihlfqH'
 
 // 缓存 access token
 let cachedToken = null
@@ -71,7 +70,7 @@ async function baiduOCR(imageBase64, accessToken) {
     }
   )
 
-  console.log('百度 OCR 返回:', JSON.stringify(res.data).substring(0, 200))
+  console.log('百度 OCR 返回:', JSON.stringify(res.data).substring(0, 300))
   return res.data
 }
 
@@ -86,7 +85,7 @@ async function downloadImageFromCloudStorage(imgUrl) {
   })
   
   if (result.fileContent) {
-    console.log('图片下载成功, 大小:', result.fileContent.length)
+    console.log('图片下载成功，大小:', result.fileContent.length)
     return result.fileContent.toString('base64')
   }
   
@@ -94,10 +93,11 @@ async function downloadImageFromCloudStorage(imgUrl) {
 }
 
 /**
- * 解析订单（通用解析逻辑）
+ * 解析订单（优化版 - 更宽松的匹配规则）
  */
 function parseOrder(texts) {
-  console.log('开始解析订单, 文字行数:', texts.length)
+  console.log('开始解析订单，文字行数:', texts.length)
+  console.log('文字内容:', texts.slice(0, 10).join(' | '))
   
   let productName = ''
   let price = 0
@@ -108,87 +108,71 @@ function parseOrder(texts) {
                            '查看', '评价', '申请', '客服', '详情', '更多',
                            '京东物流', '京东快递', '电子面单',
                            '已签收', '联系商家', '申请退款', '极速发货',
-                           '拼多多', '淘宝', '天猫', '抖音',
-                           // 排除店铺名相关
-                           '店铺', '专营店', '旗舰店', '官方', '旗舰店', '专卖店',
-                           '官方旗舰店', '自营旗舰店', '官方专卖店', '品牌旗舰店',
-                           '京东自营', '天猫旗舰店', '天猫专营', '淘宝店铺']
+                           '拼多多', '淘宝', '天猫', '抖音', '店铺', '旗舰店']
 
   const isAddressOrPhone = (text) => {
     if (/\d{3,4}\*\*\*\d{4}/.test(text)) return true
-    if (/(工业园|开发区|路|号|楼|室|栋|单元|街道|镇|村)/.test(text)) return true
+    if (/(工业园 | 开发区 | 路 | 号 | 楼 | 室 | 栋 | 单元 | 街道 | 镇 | 村)/.test(text)) return true
     return false
   }
 
-  // 检查是否主要是价格数字（排除包含大量数字的行）
-  const isPriceOnly = (text) => {
-    // 如果文本主要是数字和货币符号，认为是价格
-    const digits = text.replace(/[^0-9.]/g, '')
-    const nonDigits = text.replace(/[0-9.¥￥\s]/g, '')
-    // 如果数字占比超过 70%，且没有 meaningful 的文字，认为是价格
-    if (digits.length > 0 && nonDigits.length < 3) {
-      return true
-    }
-    // 单独的价格行（如 "¥199.00" 或 "实付：99"）
-    if (/^[\s¥￥实付应付原价]*\d+\.?\d*[\s¥￥元]*$/.test(text)) {
-      return true
-    }
-    return false
-  }
-
-  // 查找商品名
-  for (const text of texts) {
-    // 跳过纯价格数字的行
-    if (isPriceOnly(text)) {
-      console.log('跳过价格行:', text)
-      continue
-    }
+  // 提取价格 - 更宽松的匹配
+  const extractPrice = (text) => {
+    const patterns = [
+      /(?:实付 | 应付 | 合计 | 总额 | 金额|￥|¥)\s*[：:]\s*(\d+\.?\d*)/,
+      /[￥¥]\s*(\d+\.?\d*)/,
+      /(\d+\.?\d*)\s*元/,
+      /^\s*(\d+\.?\d*)\s*$/
+    ]
     
-    const hasSpec = /(\d+ml|\d+g|\d+片|\d+包|\d+装|婴儿|儿童|宝宝|奶粉|尿不湿|纸尿裤|爽身露|润肤露|马桶垫|产妇|一次性|抗菌|加厚|夹棉|旅行|酒店|月子|湿巾|洗护|沐浴|护肤|爽身粉|护臀|桃子水|口水|辅食|米粉|果泥|奶瓶|喂养|安抚奶嘴|衣服|裤子|鞋|帽|袜|连体衣|套装|棉服|外套|玩具|积木|摇铃|绘本|图书|拼图|疫苗|体温|保健品|钙|维生素|早教|课程|学习|启蒙)/i.test(text)
-    const hasBrand = /(贝亲|可心柔|babycare|好孩子|全棉时代|英氏|启初|红色小象|洁丽雅|GRACE|帮宝适|好奇|花王|大王|尤妮佳|露安适|妮飘|宜婴|雀巢|惠氏|美赞臣|爱他美|诺优能|合生元|飞鹤|伊利|君乐宝|完达山|贝因美|澳优|海普诺凯|佳贝艾特|蓝河|绵羊奶|可瑞康|牛栏|喜宝|泓乐|特福芬|康维多|美素佳儿)/i.test(text)
-    const shouldExclude = excludeKeywords.some(kw => text.includes(kw))
-    const isAddress = isAddressOrPhone(text)
-    
-    if ((hasSpec || hasBrand) && !shouldExclude && !isAddress && text.length > 5 && text.length < 150) {
-      productName = text.trim()
-      break
-    }
-  }
-
-  // 如果没找到，查找包含母婴关键词的行
-  if (!productName) {
-    for (const text of texts) {
-      // 跳过纯价格数字的行
-      if (isPriceOnly(text)) {
-        continue
-      }
-      
-      const hasBabyKeyword = /(婴儿|儿童|宝宝|母婴|孕妇|产妇|新生儿|幼儿|少儿|童|婴|幼)/i.test(text)
-      const shouldExclude = excludeKeywords.some(kw => text.includes(kw))
-      const isAddress = isAddressOrPhone(text)
-      
-      if (hasBabyKeyword && !shouldExclude && !isAddress && text.length > 5 && text.length < 150) {
-        productName = text.trim()
-        break
-      }
-    }
-  }
-
-  // 提取价格
-  for (const text of texts) {
-    if (text.includes('¥') || text.includes('￥')) {
-      const priceMatch = text.match(/[¥￥]\s*(\d+\.?\d*)/)
-      if (priceMatch) {
-        const possiblePrice = parseFloat(priceMatch[1])
+    for (const pattern of patterns) {
+      const match = text.match(pattern)
+      if (match) {
+        const possiblePrice = parseFloat(match[1])
         if (possiblePrice > 1 && possiblePrice < 10000) {
-          price = possiblePrice
-          break
+          return possiblePrice
         }
       }
     }
+    return null
   }
 
-  console.log('解析结果:', { productName, price, quantity })
+  // 查找商品名 - 优先找最长的有意义的行
+  let candidateLines = []
+  for (const text of texts) {
+    if (isAddressOrPhone(text)) continue
+    if (excludeKeywords.some(kw => text.includes(kw))) continue
+    if (/^[\s\d.￥¥:：元]+$/.test(text)) continue
+    if (text.length < 3 || text.length > 200) continue
+    
+    let score = 0
+    if (/(?:婴儿 | 儿童 | 宝宝 | 母婴 | 奶粉 | 尿不湿 | 纸尿裤 | 湿巾 | 玩具 | 衣服 | 鞋 | 帽)/i.test(text)) score += 10
+    if (/(?:贝亲|babycare|好孩子 | 全棉时代 | 帮宝适 | 好奇 | 花王 | 雀巢 | 惠氏 | 爱他美)/i.test(text)) score += 5
+    if (/\d+ml|\d+g|\d+片|\d+包|\d+装/i.test(text)) score += 3
+    if (text.length > 10) score += 2
+    
+    candidateLines.push({ text: text.trim(), score })
+  }
+  
+  candidateLines.sort((a, b) => b.score - a.score)
+  if (candidateLines.length > 0) {
+    productName = candidateLines[0].text
+    console.log('找到商品名:', productName, '分数:', candidateLines[0].score)
+  }
+
+  // 提取价格 - 找所有价格中最大的
+  let prices = []
+  for (const text of texts) {
+    const p = extractPrice(text)
+    if (p !== null) {
+      prices.push(p)
+    }
+  }
+  if (prices.length > 0) {
+    price = Math.max(...prices)
+    console.log('找到价格:', price, '候选:', prices)
+  }
+
   return { productName, price, quantity }
 }
 
@@ -222,7 +206,7 @@ function recognizeCategory(productName) {
  * 云函数入口函数
  */
 async function main(event, context) {
-  console.log('OCR 云函数被调用, event:', JSON.stringify(event).substring(0, 200))
+  console.log('OCR 云函数被调用，event:', JSON.stringify(event).substring(0, 200))
 
   try {
     const { image, imgUrl } = event
@@ -251,7 +235,7 @@ async function main(event, context) {
       console.error('获取 Token 失败:', tokenErr)
       return {
         success: false,
-        error: '获取百度授权失败: ' + tokenErr.message
+        error: '获取百度授权失败：' + tokenErr.message
       }
     }
 
@@ -263,7 +247,7 @@ async function main(event, context) {
       console.error('调用百度 OCR 失败:', ocrErr)
       return {
         success: false,
-        error: 'OCR 调用失败: ' + ocrErr.message
+        error: 'OCR 调用失败：' + ocrErr.message
       }
     }
 
@@ -272,7 +256,7 @@ async function main(event, context) {
       console.error('百度 OCR 返回错误:', result)
       return {
         success: false,
-        error: 'OCR 识别失败: ' + (result.error_msg || '未知错误'),
+        error: 'OCR 识别失败：' + (result.error_msg || '未知错误'),
         errorCode: result.error_code
       }
     }
@@ -280,7 +264,7 @@ async function main(event, context) {
     // 提取文字
     const words = result.words_result || []
     const texts = words.map(item => item.words)
-    console.log('识别到文字行数:', texts.length, '内容:', texts.slice(0, 3).join(' | '))
+    console.log('识别到文字行数:', texts.length)
 
     // 如果没有识别到任何文字
     if (texts.length === 0) {
