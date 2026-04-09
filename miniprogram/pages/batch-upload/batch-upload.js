@@ -160,7 +160,7 @@ Page({
         };
 
         const resultList = [...this.data.resultList];
-        result[index] = {
+        resultList[index] = {
           index,
           status: 'success',
           icon: '✅',
