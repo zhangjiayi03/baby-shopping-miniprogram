@@ -112,26 +112,36 @@ Component({
         return;
       }
       
-      if (!formData.price || parseFloat(formData.price) <= 0) {
-        wx.showToast({ title: '请输入有效价格', icon: 'none' });
+      // 验证价格 - 必须是有效数字
+      const priceValue = parseFloat(formData.price);
+      if (isNaN(priceValue) || priceValue <= 0 || priceValue > 100000) {
+        wx.showToast({ title: '请输入有效价格 (0-100000)', icon: 'none' });
         return;
       }
       
-      if (!formData.quantity || parseInt(formData.quantity) <= 0) {
-        wx.showToast({ title: '请输入有效数量', icon: 'none' });
+      // 验证数量 - 必须是正整数
+      const quantityValue = parseInt(formData.quantity);
+      if (isNaN(quantityValue) || quantityValue <= 0 || quantityValue > 9999) {
+        wx.showToast({ title: '请输入有效数量 (1-9999)', icon: 'none' });
         return;
       }
       
-      // 返回编辑数据
+      // 返回编辑数据（包含分类名和平台名）
+      const categoryObj = this.data.categories[formData.categoryIndex];
+      const platformObj = this.data.platforms[formData.platformIndex];
+      
       const result = {
         productName: formData.productName.trim(),
-        price: formData.price,
-        quantity: parseInt(formData.quantity),
-        categoryId: this.data.categories[formData.categoryIndex].id,
-        platform: this.data.platforms[formData.platformIndex].id,
+        price: priceValue.toFixed(2),
+        quantity: quantityValue,
+        categoryId: categoryObj.id,
+        categoryName: categoryObj.name,
+        platform: platformObj.id,
+        platformName: platformObj.name,
         orderTime: formData.orderTime
       };
       
+      console.log('📦 编辑确认返回:', result);
       this.triggerEvent('confirm', result);
     },
 

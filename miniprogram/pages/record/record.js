@@ -174,10 +174,30 @@ Page({
   // 编辑确认
   onEditConfirm(e) {
     const editedData = e.detail;
+    console.log('✏️ 编辑确认收到数据:', editedData);
+    
+    // 确保分类名和平台名存在
+    if (!editedData.categoryName) {
+      const cat = this.data.categories.find(c => c.id === editedData.categoryId);
+      editedData.categoryName = cat ? cat.name : '其他';
+    }
+    if (!editedData.platformName) {
+      const plat = this.data.platforms.find(p => p.id === editedData.platform);
+      editedData.platformName = plat ? plat.name : '京东';
+    }
+    
     this.setData({
       recognitionResult: editedData,
       editDialogVisible: false
+    }, () => {
+      console.log('✅ 编辑后更新 recognitionResult:', {
+        categoryId: this.data.recognitionResult.categoryId,
+        categoryName: this.data.recognitionResult.categoryName,
+        platform: this.data.recognitionResult.platform,
+        platformName: this.data.recognitionResult.platformName
+      });
     });
+    
     wx.showToast({
       title: '修改成功',
       icon: 'success'
