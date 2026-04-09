@@ -1,4 +1,4 @@
-// 云函数入口文件 - 百度 OCR 识别（优化版 v2）
+// 云函数入口文件 - 百度 OCR 识别（优化版 v3 - 修复价格提取）
 const cloud = require('wx-server-sdk')
 const axios = require('axios')
 
@@ -93,7 +93,7 @@ async function downloadImageFromCloudStorage(imgUrl) {
 }
 
 /**
- * 解析订单（优化版 v2 - 更严格的价格匹配）
+ * 解析订单（优化版 v3 - 修复价格提取）
  */
 function parseOrder(texts) {
   console.log('开始解析订单，文字行数:', texts.length)
@@ -116,28 +116,40 @@ function parseOrder(texts) {
     return false
   }
 
-  // 提取价格 - 更严格的匹配
+  // 提取价格 - 更严格的匹配（取最后一个匹配的价格）
   const extractPrice = (text) => {
     // 排除时间格式（如 19:53）
     if (/^\d{1,2}:\d{2}$/.test(text.trim())) return null
     
-    const patterns = [
-      /(?:实付 | 应付 | 合计 | 总额 | 金额|到手)\s*[：:]\s*(\d+\.?\d*)/,  // 实付：99.00
-      /[￥¥]\s*(\d+\.?\d*)/,  // ¥99.00
-      /(\d+\.?\d*)\s*元/,  // 99.00 元
-      /^\s*(\d+\.?\d*)\s*$/  // 纯数字行
+    // 优先匹配带关键词的价格（取最后一个，通常是合计/实付）
+    const keywordPatterns = [
+      /(?:实付 | 应付 | 合计 | 总额 | 金额 | 到手 | 共减)[：:\s]*(?:￥|¥)?\s*(\d+\.?\d*)/g,  // 实付：99.00 / 合计￥99.00
+      /(?:￥|¥)\s*(\d+\.?\d*)/g  // ¥99.00
     ]
     
-    for (const pattern of patterns) {
-      const match = text.match(pattern)
-      if (match) {
+    let lastPrice = null
+    for (const pattern of keywordPatterns) {
+      let match
+      while ((match = pattern.exec(text)) !== null) {
         const possiblePrice = parseFloat(match[1])
         if (possiblePrice > 0.1 && possiblePrice < 10000) {
-          return possiblePrice
+          lastPrice = possiblePrice  // 取最后一个匹配的价格
         }
       }
     }
-    return null
+    
+    // 如果没有关键词匹配，尝试纯数字
+    if (lastPrice === null) {
+      const pureNum = text.match(/^\s*(\d+\.?\d*)\s*$/)
+      if (pureNum) {
+        const possiblePrice = parseFloat(pureNum[1])
+        if (possiblePrice > 0.1 && possiblePrice < 10000) {
+          lastPrice = possiblePrice
+        }
+      }
+    }
+    
+    return lastPrice
   }
 
   // 查找商品名
