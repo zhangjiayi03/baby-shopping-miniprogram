@@ -1,0 +1,10 @@
+{
+  "name": "ocr",
+  "version": "1.0.0",
+  "description": "订单截图 OCR 识别云函数 - 百度 OCR 版本",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "latest",
+    "axios": "^0.27.2"
+  }
+}

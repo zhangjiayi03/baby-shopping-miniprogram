@@ -1,0 +1,12 @@
+# 微信云函数忽略文件
+node_modules/
+*.log
+.DS_Store
+
+# 开发工具
+.vscode/
+.idea/
+
+# 临时文件
+*.tmp
+*.bak

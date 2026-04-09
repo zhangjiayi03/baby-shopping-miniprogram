@@ -1,0 +1,41 @@
+{
+  "miniprogramRoot": "./",
+  "cloudfunctionRoot": "./cloudfunctions/",
+  "setting": {
+    "urlCheck": true,
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "preloadBackgroundData": false,
+    "minified": true,
+    "newFeature": false,
+    "coverView": true,
+    "nodeModules": false,
+    "autoAudits": false,
+    "showShadowRootInWxmlPanel": true,
+    "scopeDataCheck": false,
+    "uglifyFileName": false,
+    "checkInvalidKey": true,
+    "checkSiteMap": true,
+    "uploadWithSourceMap": true,
+    "compileHotReLoad": false,
+    "babelSetting": {
+      "ignore": [],
+      "disablePlugins": [],
+      "outputPath": ""
+    }
+  },
+  "appid": "touristappid",
+  "projectname": "baby-shopping",
+  "libVersion": "3.15.1",
+  "cloudfunctionTemplateRoot": "./cloudfunctionTemplate/",
+  "condition": {},
+  "srcMiniprogramRoot": "",
+  "cloudbaseRoot": "cloudbaserc.json",
+  "cloudfunctionV2Root": "",
+  "compileType": "mini-program",
+  "setting_v2": {},
+  "simulatorType": "wechat",
+  "simulatorPluginLibVersion": {},
+  "cloudfunctionRoot": "./cloudfunctions/"
+}
