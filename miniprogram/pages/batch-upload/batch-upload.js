@@ -160,18 +160,20 @@ Page({
         };
 
         const resultList = [...this.data.resultList];
-        result[index] = {
+        resultList[index] = {
           index,
           status: 'success',
           icon: '✅',
           statusText: '识别成功',
           data: {
             productName: ocrData.data.productName || '未识别商品',
-            price: ocrData.data.price || '0.00',
+            price: ocrData.data.price.toString() || '0.00',
             orderTime: ocrData.data.orderTime,
             quantity: ocrData.data.quantity || 1,
-            platform: ocrData.data.platform || 'other',
+            platform: ocrData.data.platform || 'jd',
+            platformName: ocrData.data.platform === 'jd' ? '京东' : ocrData.data.platform === 'taobao' ? '淘宝' : ocrData.data.platform === 'pdd' ? '拼多多' : ocrData.data.platform === 'douyin' ? '抖音' : '其他',
             categoryId: ocrData.data.categoryId || 7,
+            categoryName: ocrData.data.categoryId === 1 ? '喂养' : ocrData.data.categoryId === 2 ? '洗护' : ocrData.data.categoryId === 3 ? '服装' : ocrData.data.categoryId === 4 ? '玩具' : ocrData.data.categoryId === 5 ? '医疗' : ocrData.data.categoryId === 6 ? '教育' : '其他',
             imagePath: fileID
           },
           error: null
