@@ -107,7 +107,7 @@ function parseOrder(texts) {
     console.log('找到商品名:', productName, '分数:', candidateLines[0].score)
   }
 
-  // ========== 价格提取 - 简化版 ==========
+  // ========== 价格提取 - 修复关键词匹配 ==========
   let actualPayPrice = null  // 实付/到手价
   let totalPrice = null      // 合计/总额
   let allPrices = []
@@ -115,6 +115,10 @@ function parseOrder(texts) {
   for (const text of texts) {
     // 排除时间格式
     if (/^\d{1,2}:\d{2}$/.test(text.trim())) continue
+    
+    // 检查关键词（先检查，再提取价格）
+    const hasActualPay = text.includes('实付') || text.includes('到手')
+    const hasTotal = text.includes('合计') || text.includes('总额') || text.includes('共减')
     
     // 提取所有价格
     const priceMatches = text.matchAll(/(?:￥|¥)\s*(\d+\.?\d*)/g)
@@ -124,11 +128,11 @@ function parseOrder(texts) {
         allPrices.push({ price: p, text })
         
         // 检查关键词
-        if (/(实付 | 到手)/i.test(text)) {
+        if (hasActualPay) {
           actualPayPrice = p
           console.log('💰 找到实付/到手价:', p, '|', text)
         }
-        if (/(合计 | 总额 | 共)/i.test(text) && !/(实付 | 到手)/i.test(text)) {
+        if (hasTotal && !hasActualPay) {
           totalPrice = p
           console.log('💰 找到合计/总额:', p, '|', text)
         }
@@ -137,6 +141,7 @@ function parseOrder(texts) {
   }
   
   console.log('📊 所有价格:', allPrices.map(p => p.price))
+  console.log('实付价:', actualPayPrice, '合计价:', totalPrice)
   
   // 选择价格
   if (actualPayPrice !== null) {
