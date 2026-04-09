@@ -202,13 +202,15 @@ Page({
 
   // 获取分类名称
   getCategoryName(categoryId) {
+    if (!categoryId) return '其他';  // 默认值
     const category = this.data.categories.find(c => c.id === categoryId);
-    return category ? category.name : '未知';
+    return category ? category.name : '其他';
   },
 
   // 获取平台名称
   getPlatformName(platform) {
+    if (!platform) return '京东';  // 默认值
     const platformItem = this.data.platforms.find(p => p.id === platform);
-    return platformItem ? platformItem.name : '未知';
+    return platformItem ? platformItem.name : '京东';
   }
 });
