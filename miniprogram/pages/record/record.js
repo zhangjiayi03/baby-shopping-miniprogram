@@ -68,22 +68,38 @@ Page({
     wx.showLoading({ title: '识别中...' });
     
     try {
-      // TODO: 调用 OCR 识别接口
-      // 这里先模拟识别结果
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const mockResult = {
-        productName: '示例商品名称',
-        price: '99.00',
-        quantity: 1,
-        categoryId: 1,
-        platform: 'taobao',
-        orderTime: new Date().toISOString().split('T')[0]
-      };
-      
-      this.setData({
-        recognitionResult: mockResult
+      // 上传到云存储
+      const uploadRes = await wx.cloud.uploadFile({
+        cloudPath: `records/${Date.now()}_${Math.random()}.jpg`,
+        filePath: imagePath
       });
+      
+      const fileID = uploadRes.fileID;
+      
+      // 调用 OCR 云函数
+      const ocrRes = await wx.cloud.callFunction({
+        name: 'ocr',
+        data: {
+          imgUrl: fileID
+        }
+      });
+      
+      const ocrData = ocrRes.result;
+      
+      if (ocrData.success) {
+        this.setData({
+          recognitionResult: {
+            productName: ocrData.data.productName || '未识别商品',
+            price: ocrData.data.price.toString() || '0.00',
+            quantity: ocrData.data.quantity || 1,
+            categoryId: ocrData.data.categoryId || 7,
+            platform: ocrData.data.platform || 'other',
+            orderTime: new Date().toISOString().split('T')[0]
+          }
+        });
+      } else {
+        throw new Error(ocrData.error || '识别失败');
+      }
       
       wx.hideLoading();
     } catch (error) {

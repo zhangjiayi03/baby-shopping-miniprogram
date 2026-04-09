@@ -145,8 +145,7 @@ Page({
       const ocrRes = await wx.cloud.callFunction({
         name: 'ocr',
         data: {
-          fileID: fileID,
-          type: 'order' // 订单截图识别
+          imgUrl: fileID
         }
       });
 
