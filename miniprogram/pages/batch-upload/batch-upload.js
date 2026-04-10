@@ -160,7 +160,10 @@
           }
         });
 
+        console.log('🔍 OCR 云函数返回:', JSON.stringify(ocrRes.result, null, 2));
+        
         if (ocrRes.result && ocrRes.result.success && ocrRes.result.data) {
+          console.log('✅ 识别成功，data:', ocrRes.result.data);
           // 确保数据结构完整
           const ocrData = ocrRes.result.data;
           const normalizedData = {
@@ -172,6 +175,8 @@
             orderTime: String(ocrData.orderTime || new Date().toISOString().split('T')[0])
           };
           
+          console.log('📦 标准化后的数据:', normalizedData);
+          
           results.push({
             index: i,
             status: 'success',
@@ -181,6 +186,7 @@
             error: null
           });
         } else {
+          console.error('❌ 识别失败，result:', ocrRes.result);
           results.push({
             index: i,
             status: 'error',
