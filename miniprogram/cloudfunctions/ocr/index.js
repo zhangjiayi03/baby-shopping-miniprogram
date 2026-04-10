@@ -273,6 +273,7 @@ async function main(event, context) {
     const categoryId = recognizeCategory(parsedResult.productName || '')
     console.log('📊 最终结果 - 平台:', platform, '分类 ID:', categoryId, '商品名:', parsedResult.productName)
 
+    const now = new Date();
     const response = {
       success: true,
       data: {
@@ -281,6 +282,7 @@ async function main(event, context) {
         quantity: parsedResult.quantity || 1,
         platform: platform,
         categoryId: categoryId,
+        orderTime: now.toISOString().split('T')[0],  // 添加订单日期
         rawTexts: texts.slice(0, 10)
       }
     }

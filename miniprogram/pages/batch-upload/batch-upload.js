@@ -260,11 +260,23 @@
     const index = e.currentTarget.dataset.index;
     const { resultList } = this.data;
     
+    console.log('💾 保存单条，index:', index);
+    console.log('resultList:', resultList);
+    console.log('resultList[' + index + ']:', resultList[index]);
+    
     const item = resultList[index];
 
     // 安全检查
-    if (!item || !item.data) {
+    if (!item) {
+      console.error('❌ item 为空');
       wx.showToast({ title: '数据为空，请重试', icon: 'none' });
+      return;
+    }
+
+    if (!item.data) {
+      console.error('❌ item.data 为空');
+      console.error('完整 item:', JSON.stringify(item, null, 2));
+      wx.showToast({ title: '数据格式错误，请重新识别', icon: 'none' });
       return;
     }
 
