@@ -292,6 +292,8 @@
     wx.showLoading({ title: '保存中...' });
 
     try {
+      console.log('📤 发送到云函数的数据:', dataToSave);
+      
       const res = await wx.cloud.callFunction({
         name: 'record',
         data: {
@@ -299,6 +301,9 @@
           record: dataToSave
         }
       });
+
+      console.log('📥 云函数返回:', res);
+      console.log('res.result:', res.result);
 
       if (res.result && res.result.success) {
         // 更新状态为已保存
