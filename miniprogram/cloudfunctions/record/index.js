@@ -42,15 +42,55 @@ exports.main = async (event, context) => {
 
 // 创建记录
 async function createRecord(data) {
+  // 数据验证
+  if (!data.productName || !data.productName.trim()) {
+    return {
+      success: false,
+      message: '商品名称不能为空'
+    };
+  }
+  
+  const price = parseFloat(data.price);
+  if (isNaN(price) || price < 0 || price > 100000) {
+    return {
+      success: false,
+      message: '价格必须在 0-100000 之间'
+    };
+  }
+  
+  const quantity = parseInt(data.quantity);
+  if (isNaN(quantity) || quantity <= 0 || quantity > 9999) {
+    return {
+      success: false,
+      message: '数量必须在 1-9999 之间'
+    };
+  }
+  
+  const categoryId = parseInt(data.categoryId);
+  if (isNaN(categoryId) || categoryId < 1 || categoryId > 7) {
+    return {
+      success: false,
+      message: '分类 ID 无效'
+    };
+  }
+  
+  const validPlatforms = ['taobao', 'jd', 'pdd', 'douyin', 'meituan', 'other'];
+  if (!validPlatforms.includes(data.platform)) {
+    return {
+      success: false,
+      message: '平台类型无效'
+    };
+  }
+  
   const now = new Date();
   const record = {
-    productName: data.productName,
-    price: data.price,
-    quantity: data.quantity,
-    unitPrice: data.unitPrice || (parseFloat(data.price) / data.quantity).toFixed(2),
-    categoryId: data.categoryId,
+    productName: data.productName.trim(),
+    price: price,
+    quantity: quantity,
+    unitPrice: data.unitPrice || (price / quantity).toFixed(2),
+    categoryId: categoryId,
     platform: data.platform,
-    orderTime: data.orderTime,
+    orderTime: data.orderTime || now.toISOString().split('T')[0],
     imageUrl: data.imageUrl || '',
     createTime: now.toISOString(),
     updateTime: now.toISOString(),

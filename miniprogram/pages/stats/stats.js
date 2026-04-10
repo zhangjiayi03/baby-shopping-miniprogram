@@ -112,7 +112,7 @@ Page({
     const now = new Date();
     const trend = [];
     
-    // 获取最近 6 个月的数据
+    // 第一步：收集所有数据
     for (let i = 5; i >= 0; i--) {
       const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const year = date.getFullYear();
@@ -130,15 +130,11 @@ Page({
         
         if (res.result && res.result.success) {
           const amount = res.result.data.total;
-          // 计算柱状图高度（最大值为 100%）
-          const maxAmount = Math.max(...trend.map(t => t.rawAmount), amount);
-          const height = maxAmount > 0 ? (amount / maxAmount) * 80 : 0;
-          
           trend.push({
             month: `${month}月`,
             amount: amount.toFixed(0),
             rawAmount: amount,
-            height: Math.max(height, 10) // 最小高度 10%
+            height: 0 // 先设为 0，后续统一计算
           });
         }
       } catch (error) {
@@ -147,10 +143,17 @@ Page({
           month: `${month}月`,
           amount: '0',
           rawAmount: 0,
-          height: 10
+          height: 0
         });
       }
     }
+    
+    // 第二步：计算最大值并设置高度
+    const maxAmount = Math.max(...trend.map(t => t.rawAmount), 1); // 避免除以 0
+    trend.forEach(item => {
+      const height = maxAmount > 0 ? (item.rawAmount / maxAmount) * 80 : 0;
+      item.height = Math.max(height, 10); // 最小高度 10%
+    });
     
     this.setData({ monthlyTrend: trend });
   },

@@ -159,13 +159,24 @@
           }
         });
 
-        if (ocrRes.result && ocrRes.result.success) {
+        if (ocrRes.result && ocrRes.result.success && ocrRes.result.data) {
+          // 确保数据结构完整
+          const ocrData = ocrRes.result.data;
+          const normalizedData = {
+            productName: String(ocrData.productName || '未识别商品'),
+            price: parseFloat(ocrData.price) || 0,
+            quantity: parseInt(ocrData.quantity) || 1,
+            categoryId: parseInt(ocrData.categoryId) || 7,
+            platform: String(ocrData.platform || 'other'),
+            orderTime: String(ocrData.orderTime || new Date().toISOString().split('T')[0])
+          };
+          
           results.push({
             index: i,
             status: 'success',
             icon: '✅',
             statusText: '识别成功',
-            data: ocrRes.result.data,
+            data: normalizedData,
             error: null
           });
         } else {
@@ -248,37 +259,16 @@
     const index = e.currentTarget.dataset.index;
     const { resultList } = this.data;
     
-    console.log('💾 保存单条，index:', index);
-    console.log('resultList 长度:', resultList.length);
-    console.log('resultList[' + index + ']:', resultList[index]);
-    
     const item = resultList[index];
 
     // 安全检查
-    if (!item) {
-      console.error('❌ item 为空');
+    if (!item || !item.data) {
       wx.showToast({ title: '数据为空，请重试', icon: 'none' });
       return;
     }
 
-    if (!item.data) {
-      console.error('❌ item.data 为空');
-      console.error('完整 item:', JSON.stringify(item, null, 2));
-      wx.showToast({ title: '数据格式错误，请重新识别', icon: 'none' });
-      return;
-    }
-
-    // 确保数据存在且格式正确
-    const dataToSave = {
-      productName: String(item.data.productName || '未命名商品'),
-      price: parseFloat(item.data.price) || 0,
-      quantity: parseInt(item.data.quantity) || 1,
-      categoryId: parseInt(item.data.categoryId) || 7,
-      platform: String(item.data.platform || 'other'),
-      orderTime: String(item.data.orderTime || new Date().toISOString().split('T')[0])
-    };
-
-    console.log('实际保存的数据:', dataToSave);
+    // 数据已经在 ocrBatch 中标准化，直接使用
+    const dataToSave = item.data;
 
     wx.showLoading({ title: '保存中...' });
 
@@ -290,8 +280,6 @@
           record: dataToSave
         }
       });
-
-      console.log('云函数返回:', res.result);
 
       if (res.result && res.result.success) {
         // 更新状态为已保存
@@ -329,14 +317,10 @@
   async saveAll() {
     const { resultList } = this.data;
     
-    console.log('📦 批量保存，resultList 长度:', resultList.length);
-    
     // 过滤出成功且有数据的记录
     const successItems = resultList.filter(item => 
       item.status === 'success' && item.data && typeof item.data === 'object'
     );
-
-    console.log('可保存的记录数:', successItems.length);
 
     if (successItems.length === 0) {
       wx.showToast({
@@ -354,30 +338,15 @@
     let savedCount = 0;
     
     // 串行保存，避免并发问题
-    for (const item of successItems) {
+    for (let i = 0; i < successItems.length; i++) {
+      const item = successItems[i];
       try {
-        // 再次检查数据
-        if (!item.data) {
-          console.error(`跳过第 ${item.index} 条：数据为空`);
-          continue;
-        }
-
-        const dataToSave = {
-          productName: String(item.data.productName || '未命名商品'),
-          price: parseFloat(item.data.price) || 0,
-          quantity: parseInt(item.data.quantity) || 1,
-          categoryId: parseInt(item.data.categoryId) || 7,
-          platform: String(item.data.platform || 'other'),
-          orderTime: String(item.data.orderTime || new Date().toISOString().split('T')[0])
-        };
-
-        console.log(`保存第 ${item.index + 1} 条:`, dataToSave.productName);
-
+        // 数据已经在 ocrBatch 中标准化，直接使用
         const res = await wx.cloud.callFunction({
           name: 'record',
           data: {
             action: 'create',
-            record: dataToSave
+            record: item.data
           }
         });
 
@@ -385,7 +354,7 @@
           savedCount++;
           // 更新状态
           const newList = [...this.data.resultList];
-          const targetIndex = newList.findIndex(i => i.index === item.index);
+          const targetIndex = newList.findIndex(r => r.index === item.index);
           if (targetIndex >= 0) {
             newList[targetIndex] = {
               ...item,
@@ -397,7 +366,7 @@
           }
         }
       } catch (err) {
-        console.error(`保存第 ${item.index + 1} 条失败:`, err);
+        console.error(`保存第 ${i + 1} 条失败:`, err);
       }
 
       // 更新进度
