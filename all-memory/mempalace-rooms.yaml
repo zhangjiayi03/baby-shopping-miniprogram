@@ -1,0 +1,29 @@
+rooms:
+  - name: work-dev
+    description: "工作开发、技术讨论、Bug 修复"
+    files:
+      - "daily-logs/*-work-dev.md"
+  - name: work-product
+    description: "产品需求、功能设计"
+    files:
+      - "daily-logs/*-work-product.md"
+  - name: life-feedback
+    description: "用户反馈、意见、满意度"
+    files:
+      - "daily-logs/*-life-feedback.md"
+  - name: decisions
+    description: "重要决策、技术选型"
+    files:
+      - "daily-logs/*-decisions.md"
+  - name: todo
+    description: "待办事项、进度"
+    files:
+      - "daily-logs/*-todo.md"
+  - name: life-personal
+    description: "个人生活、闲聊"
+    files:
+      - "daily-logs/*-life-personal.md"
+  - name: learning
+    description: "学习、知识、技能"
+    files:
+      - "daily-logs/*-learning.md"

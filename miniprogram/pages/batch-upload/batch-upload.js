@@ -140,13 +140,14 @@
    */
   async ocrBatch(imageList) {
     const results = [];
+    const baseTime = Date.now();
     
     for (let i = 0; i < imageList.length; i++) {
       const imagePath = imageList[i];
       try {
-        // 上传图片到云存储
+        // 上传图片到云存储（添加随机数避免冲突）
         const uploadRes = await wx.cloud.uploadFile({
-          cloudPath: `order_images/${Date.now()}_${i}.jpg`,
+          cloudPath: `order_images/${baseTime}_${i}_${Math.random().toString(36).substring(2, 8)}.jpg`,
           filePath: imagePath,
         });
 

@@ -1,0 +1,21 @@
+rooms:
+  - name: technical
+    description: "技术开发、Bug 修复、代码优化"
+    files:
+      - "daily-logs/*-technical.md"
+  - name: product
+    description: "产品需求、功能设计、PRD"
+    files:
+      - "daily-logs/*-product.md"
+  - name: user-feedback
+    description: "用户反馈、对话重点"
+    files:
+      - "daily-logs/*-user-feedback.md"
+  - name: decisions
+    description: "重要决策、技术选型"
+    files:
+      - "daily-logs/*-decisions.md"
+  - name: todo
+    description: "待办事项、进度追踪"
+    files:
+      - "daily-logs/*-todo.md"

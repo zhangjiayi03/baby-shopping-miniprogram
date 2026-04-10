@@ -32,6 +32,31 @@
 - 优化了哪些配置
 - 明天的改进计划
 
+### 5. MemPalace 记忆存储（全局版 - 新增）
+**执行脚本**: `/home/node/.openclaw/workspace-pm/memory/daily-reflection-all.sh`
+
+**功能**:
+- 收集过去 24 小时**所有对话**历史（不限项目）
+- 生成**7 个分类**摘要
+- 存储到 MemPalace (`all_memory` wing)
+- 支持分类语义搜索
+
+**分类结构**:
+| 房间 | 内容 |
+|------|------|
+| work-dev | 工作开发、技术、Bug |
+| work-product | 产品需求、功能设计 |
+| life-feedback | 用户反馈、意见 |
+| decisions | 重要决策 |
+| todo | 待办事项 |
+| life-personal | 个人生活、闲聊 |
+| learning | 学习、知识 |
+
+**输出**:
+- 7 个分类日志：`all-memory/daily-logs/YYYY-MM-DD-*.md`
+- MemPalace Wing: `all_memory`
+- 房间数：7 个
+
 ## 执行命令
 
 创建定时任务：
@@ -62,6 +87,8 @@ channel 为 kim
 - **记忆文件**: `/home/node/.openclaw/workspace-pm/memory/`
 - **档案文件**: `SOUL.md`, `USER.md`, `AGENTS.md`, `TOOLS.md`
 - **进化日志**: `/home/node/.openclaw/workspace-pm/memory/evolution-log.md`
+- **MemPalace 配置**: `/home/node/.openclaw/workspace-pm/miniprogram-memory/`
+- **反思脚本**: `/home/node/.openclaw/workspace-pm/miniprogram-memory/scripts/daily-reflection.sh`
 
 ---
 
