@@ -15,6 +15,222 @@
   },
 
   /**
+   * 选择图片
+   */
+  async chooseImages() {
+    const { imageList = [] } = this.data;
+    const remaining = 9 - imageList.length;
+
+    if (remaining <= 0) {
+      wx.showToast({ title: '最多选择 9 张图片', icon: 'none' });
+      return;
+    }
+
+    try {
+      const res = await wx.chooseImage({
+        count: remaining,
+        sizeType: ['compressed'],
+        sourceType: ['album', 'camera'],
+      });
+
+      const newImages = res.tempFilePaths;
+      this.setData({
+        imageList: [...imageList, ...newImages],
+        statusList: new Array(imageList.length + newImages.length).fill(null)
+      });
+
+      console.log('📸 已选择图片:', newImages.length, '张');
+    } catch (err) {
+      console.error('选择图片失败:', err);
+      wx.showToast({ title: '选择失败', icon: 'none' });
+    }
+  },
+
+  /**
+   * 删除单张图片
+   */
+  deleteImage(e) {
+    const index = e.currentTarget.dataset.index;
+    const { imageList, statusList } = this.data;
+
+    const newList = imageList.filter((_, i) => i !== index);
+    const newStatusList = statusList.filter((_, i) => i !== index);
+
+    this.setData({
+      imageList: newList,
+      statusList: newStatusList
+    });
+
+    console.log('🗑️ 删除图片，index:', index);
+  },
+
+  /**
+   * 清空所有图片
+   */
+  clearImages() {
+    this.setData({
+      imageList: [],
+      statusList: []
+    });
+    console.log('🧹 清空所有图片');
+  },
+
+  /**
+   * 预览图片
+   */
+  previewImages() {
+    const { imageList } = this.data;
+    if (imageList.length === 0) return;
+
+    wx.previewImage({
+      urls: imageList,
+      current: imageList[0]
+    });
+  },
+
+  /**
+   * 开始批量识别
+   */
+  async startBatch() {
+    const { imageList, processing } = this.data;
+    
+    if (imageList.length === 0) {
+      wx.showToast({ title: '请先选择图片', icon: 'none' });
+      return;
+    }
+
+    if (processing) {
+      wx.showToast({ title: '正在识别中...', icon: 'none' });
+      return;
+    }
+
+    this.setData({ processing: true });
+    wx.showLoading({ title: '正在识别...', mask: true });
+
+    try {
+      // 调用 OCR 识别
+      const results = await this.ocrBatch(imageList);
+      this.setData({
+        resultList: results,
+        processing: false
+      });
+      wx.hideLoading();
+      console.log('✅ 批量识别完成，成功:', results.filter(r => r.status === 'success').length);
+    } catch (err) {
+      console.error('识别失败:', err);
+      this.setData({ processing: false });
+      wx.hideLoading();
+      wx.showToast({ title: '识别失败，请重试', icon: 'none' });
+    }
+  },
+
+  /**
+   * OCR 批量识别
+   */
+  async ocrBatch(imageList) {
+    const results = [];
+    
+    for (let i = 0; i < imageList.length; i++) {
+      const imagePath = imageList[i];
+      try {
+        // 上传图片到云存储
+        const uploadRes = await wx.cloud.uploadFile({
+          cloudPath: `order_images/${Date.now()}_${i}.jpg`,
+          filePath: imagePath,
+        });
+
+        // 调用 OCR 云函数
+        const ocrRes = await wx.cloud.callFunction({
+          name: 'ocr',
+          data: {
+            action: 'recognize',
+            fileId: uploadRes.fileID
+          }
+        });
+
+        if (ocrRes.result && ocrRes.result.success) {
+          results.push({
+            index: i,
+            status: 'success',
+            icon: '✅',
+            statusText: '识别成功',
+            data: ocrRes.result.data,
+            error: null
+          });
+        } else {
+          results.push({
+            index: i,
+            status: 'error',
+            icon: '❌',
+            statusText: '识别失败',
+            data: null,
+            error: ocrRes.result?.message || '识别失败'
+          });
+        }
+      } catch (err) {
+        results.push({
+          index: i,
+          status: 'error',
+          icon: '❌',
+          statusText: '识别失败',
+          data: null,
+          error: err.message || '网络错误'
+        });
+      }
+    }
+
+    return results;
+  },
+
+  /**
+   * 编辑记录
+   */
+  editRecord(e) {
+    const index = e.currentTarget.dataset.index;
+    const { resultList } = this.data;
+    const item = result[index];
+
+    if (!item || !item.data) return;
+
+    this.setData({
+      editDialogVisible: true,
+      editDialogData: item.data
+    });
+
+    console.log('✏️ 编辑记录，index:', index);
+  },
+
+  /**
+   * 隐藏编辑弹窗
+   */
+  hideEditDialog() {
+    this.setData({
+      editDialogVisible: false,
+      editDialogData: null
+    });
+  },
+
+  /**
+   * 编辑确认
+   */
+  onEditConfirm(e) {
+    const { index, data } = e.detail;
+    const { resultList } = this.data;
+
+    if (result[index]) {
+      const newList = [...resultList];
+      newList[index] = {
+        ...newList[index],
+        data: data
+      };
+      this.setData({ resultList: newList });
+    }
+
+    this.hideEditDialog();
+    console.log('✅ 编辑完成，index:', index);
+  },
+
+  /**
    * 保存单条记录
    */
   async saveRecord(e) {
