@@ -1,3 +1,19 @@
+  Page({
+  /**
+   * 页面的初始数据
+   */
+  data: {
+    resultList: [],
+    isRecognizing: false
+  },
+
+  /**
+   * 生命周期函数--监听页面加载
+   */
+  onLoad(options) {
+    console.log('📄 batch-upload 页面加载');
+  },
+
   /**
    * 保存单条记录
    */
@@ -178,3 +194,11 @@
       });
     }
   },
+
+  /**
+   * 页面相关事件处理函数
+   */
+  handleTouchStart() {
+    console.log('触摸开始');
+  }
+});
