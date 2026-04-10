@@ -156,7 +156,7 @@
           name: 'ocr',
           data: {
             action: 'recognize',
-            fileId: uploadRes.fileID
+            imgUrl: uploadRes.fileID  // 改为 imgUrl，与云函数参数匹配
           }
         });
 
