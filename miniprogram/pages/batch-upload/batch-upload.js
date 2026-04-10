@@ -3,8 +3,19 @@
    * 页面的初始数据
    */
   data: {
+    imageList: [],
+    statusList: [],
     resultList: [],
-    isRecognizing: false
+    processing: false,
+    editDialogVisible: false,
+    editDialogData: null
+  },
+
+  /**
+   * 计算成功数量
+   */
+  get successCount() {
+    return this.data.resultList.filter(item => item.status === 'success').length;
   },
 
   /**
@@ -188,7 +199,7 @@
   editRecord(e) {
     const index = e.currentTarget.dataset.index;
     const { resultList } = this.data;
-    const item = result[index];
+    const item = resultList[index];
 
     if (!item || !item.data) return;
 
@@ -217,7 +228,7 @@
     const { index, data } = e.detail;
     const { resultList } = this.data;
 
-    if (result[index]) {
+    if (resultList[index]) {
       const newList = [...resultList];
       newList[index] = {
         ...newList[index],

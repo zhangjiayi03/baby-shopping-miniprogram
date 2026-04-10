@@ -58,13 +58,13 @@ Page({
   // 加载用户信息
   async loadUserInfo() {
     try {
-      const userInfo = await wx.cloud.callFunction({
+      const res = await wx.cloud.callFunction({
         name: 'user',
         data: { action: 'getInfo' }
       });
       
-      if (userInfo.result && user.result.success) {
-        this.setData({ userInfo: user.result.data });
+      if (res.result && res.result.success) {
+        this.setData({ userInfo: res.result.data });
       }
     } catch (error) {
       // 云函数可能未部署，使用默认值
