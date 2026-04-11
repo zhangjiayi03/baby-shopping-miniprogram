@@ -114,6 +114,10 @@ async function createRecord(data) {
     data: record
   });
   
+  console.log('✅ 记录创建成功，_id:', res._id);
+  console.log('写入的数据:', JSON.stringify(record, null, 2));
+  console.log('当前 OPENID:', cloud.getWXContext().OPENID);
+  
   return {
     success: true,
     message: '创建成功',
@@ -185,6 +189,10 @@ async function listRecords(params = {}) {
   const { page = 1, pageSize = 20, categoryId, platform, startDate, endDate } = params;
   const skip = (page - 1) * pageSize;
   
+  const currentOpenid = cloud.getWXContext().OPENID;
+  console.log('📋 查询列表，当前 OPENID:', currentOpenid);
+  console.log('查询参数:', JSON.stringify(params, null, 2));
+  
   let query = db.collection('records');
   
   // 构建查询条件
@@ -211,13 +219,16 @@ async function listRecords(params = {}) {
   
   // 只查询当前用户的记录
   conditions.push({
-    _openid: cloud.getWXContext().OPENID
+    _openid: currentOpenid
   });
   
   let result = query;
   if (conditions.length > 0) {
     result = query.where(_.and(conditions));
   }
+  
+  const total = await result.count();
+  console.log('📊 查询结果总数:', total.total);
   
   const total = await result.count();
   const records = await result
