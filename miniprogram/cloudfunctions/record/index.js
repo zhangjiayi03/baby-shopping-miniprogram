@@ -42,8 +42,21 @@ exports.main = async (event, context) => {
 
 // 创建记录
 async function createRecord(data) {
+  console.log('📥 云函数接收到数据:', JSON.stringify(data, null, 2));
+  console.log('typeof data:', typeof data);
+  console.log('data.productName:', data?.productName);
+  
+  // 安全检查
+  if (!data) {
+    return {
+      success: false,
+      message: '数据不能为空'
+    };
+  }
+  
   // 数据验证
   if (!data.productName || !data.productName.trim()) {
+    console.log('❌ 商品名称为空');
     return {
       success: false,
       message: '商品名称不能为空'

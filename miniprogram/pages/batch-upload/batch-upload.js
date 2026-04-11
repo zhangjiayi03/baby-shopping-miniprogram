@@ -267,14 +267,24 @@
     const { resultList } = this.data;
     
     console.log('💾 保存单条，index:', index);
-    console.log('resultList:', resultList);
+    console.log('resultList 长度:', resultList.length);
+    console.log('resultList:', JSON.stringify(resultList, null, 2));
     console.log('resultList[' + index + ']:', resultList[index]);
+    console.log('typeof index:', typeof index, 'value:', index);
     
-    const item = resultList[index];
+    // 确保 index 是数字
+    const numericIndex = parseInt(index);
+    if (isNaN(numericIndex)) {
+      console.error('❌ index 不是数字:', index);
+      wx.showToast({ title: '索引错误，请重试', icon: 'none' });
+      return;
+    }
+    
+    const item = resultList[numericIndex];
 
     // 安全检查
     if (!item) {
-      console.error('❌ item 为空');
+      console.error('❌ item 为空，index:', numericIndex, 'resultList 长度:', resultList.length);
       wx.showToast({ title: '数据为空，请重试', icon: 'none' });
       return;
     }
@@ -298,7 +308,7 @@
         name: 'record',
         data: {
           action: 'create',
-          record: dataToSave
+          data: dataToSave  // 字段名改为 data，与云函数保持一致
         }
       });
 
@@ -370,7 +380,7 @@
           name: 'record',
           data: {
             action: 'create',
-            record: item.data
+            data: item.data  // 字段名改为 data，与云函数保持一致
           }
         });
 
