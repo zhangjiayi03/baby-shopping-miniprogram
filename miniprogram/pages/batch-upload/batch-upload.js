@@ -384,8 +384,11 @@
           }
         });
 
+        console.log(`📝 保存第 ${i + 1} 条，云函数返回:`, JSON.stringify(res.result, null, 2));
+        
         if (res.result && res.result.success) {
           savedCount++;
+          console.log(`✅ 保存成功，已保存 ${savedCount}/${successItems.length}`);
           // 更新状态
           const newList = [...this.data.resultList];
           const targetIndex = newList.findIndex(r => r.index === item.index);
@@ -398,9 +401,21 @@
             };
             this.setData({ resultList: newList });
           }
+        } else {
+          console.error(`❌ 保存失败，result:`, res.result);
+          wx.showToast({
+            title: `第 ${i + 1} 条保存失败：${res.result?.message || '未知错误'}`,
+            icon: 'none',
+            duration: 2000
+          });
         }
       } catch (err) {
-        console.error(`保存第 ${i + 1} 条失败:`, err);
+        console.error(`❌ 保存第 ${i + 1} 条异常:`, err);
+        wx.showToast({
+          title: `保存异常：${err.message}`,
+          icon: 'none',
+          duration: 2000
+        });
       }
 
       // 更新进度
@@ -415,8 +430,25 @@
     if (savedCount > 0) {
       wx.showToast({
         title: `成功保存 ${savedCount} 条`,
-        icon: 'success'
+        icon: 'success',
+        duration: 2000
       });
+      
+      // 1.5 秒后询问是否跳转首页查看
+      setTimeout(() => {
+        wx.showModal({
+          title: '保存完成',
+          content: `成功保存 ${savedCount} 条记录，是否查看？`,
+          success: (res) => {
+            if (res.confirm) {
+              console.log('🔄 跳转到首页查看记录');
+              wx.switchTab({
+                url: '/pages/index/index'
+              });
+            }
+          }
+        });
+      }, 1500);
     } else {
       wx.showToast({
         title: '保存失败，请重试',
