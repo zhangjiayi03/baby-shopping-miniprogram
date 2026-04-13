@@ -77,11 +77,13 @@
 }
 
 .info-tag {
+  display: inline-block;
   font-size: 24rpx;
   color: #fff;
   background-color: #1890ff;
-  padding: 5rpx 15rpx;
+  padding: 8rpx 16rpx;
   border-radius: 20rpx;
+  line-height: 1;
 }
 
 .info-date {
