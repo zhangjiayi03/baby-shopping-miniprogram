@@ -80,15 +80,21 @@ function parseOrder(texts) {
   let price = 0
   let quantity = 1
 
-  const excludeKeywords = ['售后', '服务', '完成', '感谢', '支持', '订单', '时间', '地址', '电话', '收货', '支付', '配送', '查看', '评价', '申请', '客服', '详情', '更多', '京东物流', '京东快递', '电子面单', '已签收', '联系商家', '申请退款', '极速发货', '拼多多', '淘宝', '天猫', '抖音', '店铺', '旗舰店']
+  const excludeKeywords = ['售后', '服务', '完成', '感谢', '支持', '订单', '时间', '地址', '电话', '收货', '支付', '配送', '查看', '评价', '申请', '客服', '详情', '更多', '京东物流', '京东快递', '电子面单', '已签收', '联系商家', '申请退款', '极速发货', '拼多多', '淘宝', '天猫', '抖音', '店铺', '旗舰店', '宝贝', '详情', '评论', '推荐', '搜索', '购物车', '我的', '首页', '分类', '天前', '小时内', '自动确认', '自动扣款']
 
   const isAddressOrPhone = (text) => {
     if (/\d{3,4}\*\*\*\d{4}/.test(text)) return true
-    if (/(工业园 | 开发区 | 路 | 号 | 楼 | 室 | 栋 | 单元 | 街道 | 镇 | 村)/.test(text)) return true
+    if (/(工业园|开发区|路|号|楼|室|栋|单元|街道|镇|村)/.test(text)) return true
     return false
   }
 
-  // 查找商品名
+  // 扩展品牌关键词
+  const brandKeywords = ['贝亲', 'babycare', '好孩子', '全棉时代', '帮宝适', '好奇', '花王', '雀巢', '惠氏', '爱他美', '飞利浦', '新安怡', 'philips', 'avent', 'NUK', 'hegen', '可么多么', 'comotomo', '世喜', '小白熊', '小白象', '童泰', '巴拉巴拉', '安奈儿']
+  
+  // 扩展母婴产品关键词
+  const babyKeywords = ['婴儿', '儿童', '宝宝', '母婴', '奶粉', '尿不湿', '纸尿裤', '湿巾', '玩具', '衣服', '鞋', '帽', '安抚', '奶嘴', '奶瓶', '吸奶器', '温奶器', '消毒柜', '洗澡盆', '浴盆', '推车', '安全座椅', '餐椅', '围兜', '口水巾', '毛巾', '被子', '睡袋', '枕头', '床垫', '摇篮', '床铃', '安抚玩偶', '牙胶', '磨牙棒', '辅食', '米粉', '果泥', '零食', '营养品', '维生素', '钙', '锌', '铁', '益生菌', '防晒', '面霜', '润肤', '洗发', '沐浴', '洗衣液', '洗衣皂', '防胀气', '防吐奶', '学饮杯', '水杯', '碗', '勺子', '叉子', '辅食机', '料理机', '围栏', '爬行垫', '地垫', '收纳']
+
+  // 查找商品名 - 智能评分
   let candidateLines = []
   for (const text of texts) {
     if (isAddressOrPhone(text)) continue
@@ -97,18 +103,58 @@ function parseOrder(texts) {
     if (text.length < 3 || text.length > 200) continue
     
     let score = 0
-    if (/(?:婴儿 | 儿童 | 宝宝 | 母婴 | 奶粉 | 尿不湿 | 纸尿裤 | 湿巾 | 玩具 | 衣服 | 鞋 | 帽)/i.test(text)) score += 10
-    if (/(?:贝亲|babycare|好孩子 | 全棉时代 | 帮宝适 | 好奇 | 花王 | 雀巢 | 惠氏 | 爱他美)/i.test(text)) score += 5
-    if (/\d+ml|\d+g|\d+片|\d+包|\d+装/i.test(text)) score += 3
-    if (text.length > 10) score += 2
+    
+    // 品牌关键词高分
+    for (const brand of brandKeywords) {
+      if (text.toLowerCase().includes(brand.toLowerCase())) {
+        score += 15
+        break
+      }
+    }
+    
+    // 母婴产品关键词高分
+    for (const kw of babyKeywords) {
+      if (text.includes(kw)) {
+        score += 12
+        break
+      }
+    }
+    
+    // 规格信息加分
+    if (/\d+ml|\d+g|\d+kg|\d+片|\d+包|\d+装|\d+个|\d+只|\d+套/i.test(text)) score += 5
+    
+    // 合理长度加分
+    if (text.length > 5 && text.length < 50) score += 3
+    
+    // 包含数字和中文（常见商品名格式）
+    if (/[\u4e00-\u9fa5].*\d|\d.*[\u4e00-\u9fa5]/.test(text)) score += 2
+    
+    // 排除纯价格行
+    if (/^[￥¥]?\d+\.?\d*\s*(元)?$/.test(text.trim())) score -= 50
+    
+    // 排除时间格式
+    if (/^\d{1,2}:\d{2}/.test(text.trim())) score -= 50
     
     candidateLines.push({ text: text.trim(), score })
   }
   
   candidateLines.sort((a, b) => b.score - a.score)
-  if (candidateLines.length > 0) {
+  
+  // 输出调试信息
+  console.log('商品名候选:', candidateLines.slice(0, 5))
+  
+  if (candidateLines.length > 0 && candidateLines[0].score > 0) {
     productName = candidateLines[0].text
-    console.log('找到商品名:', productName, '分数:', candidateLines[0].score)
+    console.log('✅ 找到商品名:', productName, '分数:', candidateLines[0].score)
+  } else {
+    // 后备：取第一行非排除文本
+    for (const text of texts) {
+      if (!excludeKeywords.some(kw => text.includes(kw)) && text.length > 3) {
+        productName = text.trim()
+        break
+      }
+    }
+    console.log('⚠️ 使用后备商品名:', productName)
   }
 
   // ========== 价格提取 - 优先提取关键词后的数字 ==========
