@@ -115,7 +115,7 @@
       <view class="dialog-content">
         <view class="form-item">
           <text class="form-label">昵称</text>
-          <input class="form-input" model:value="{{babyForm.name}}" placeholder="请输入宝宝昵称" />
+          <input class="form-input" value="{{babyForm.name}}" bindinput="onNameInput" placeholder="请输入宝宝昵称" />
         </view>
         <view class="form-item">
           <text class="form-label">生日</text>

@@ -181,6 +181,12 @@ Page({
     });
   },
 
+  onNameInput(e) {
+    this.setData({
+      'babyForm.name': e.detail.value
+    });
+  },
+
   saveBabyInfo() {
     const { name, birthday } = this.data.babyForm;
     
