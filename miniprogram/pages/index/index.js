@@ -177,7 +177,7 @@ Page({
         name: 'record',
         data: { 
           action: 'delete', 
-          data: { id: id } 
+          id: id 
         }
       });
       

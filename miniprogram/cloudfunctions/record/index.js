@@ -230,7 +230,6 @@ async function listRecords(params = {}) {
   const total = await result.count();
   console.log('📊 查询结果总数:', total.total);
   
-  const total = await result.count();
   const records = await result
     .orderBy('createTime', 'desc')
     .skip(skip)
