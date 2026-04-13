@@ -7,7 +7,6 @@ cloud.init({
 })
 
 // 百度 OCR 配置 - 从云函数环境变量读取
-// 在云函数控制台设置：BAIDU_API_KEY 和 BAIDU_SECRET_KEY
 const BAIDU_API_KEY = process.env.BAIDU_API_KEY || 'aWb1o2tbEqXuH2TN41iUuhIt'
 const BAIDU_SECRET_KEY = process.env.BAIDU_SECRET_KEY || 'TLwVw2OCU5JoQtjS56HI5OcGVgihlfqH'
 
@@ -34,9 +33,7 @@ async function getBaiduAccessToken() {
     'https://aip.baidubce.com/oauth/2.0/token',
     params.toString(),
     {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       timeout: 10000
     }
   )
@@ -45,7 +42,6 @@ async function getBaiduAccessToken() {
   if (data.access_token) {
     cachedToken = data.access_token
     tokenExpire = Date.now() + (data.expires_in - 3600) * 1000
-    console.log('获取 Access Token 成功')
     return data.access_token
   }
 
@@ -58,20 +54,15 @@ async function getBaiduAccessToken() {
 async function baiduOCR(imageBase64, accessToken) {
   const url = `https://aip.baidubce.com/rest/2.0/ocr/v1/accurate_basic?access_token=${accessToken}`
   
-  console.log('调用百度 OCR API...')
-  
   const res = await axios.post(
     url,
     `image=${encodeURIComponent(imageBase64)}&detect_direction=true`,
     {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       timeout: 30000
     }
   )
 
-  console.log('百度 OCR 返回:', JSON.stringify(res.data).substring(0, 200))
   return res.data
 }
 
@@ -79,143 +70,223 @@ async function baiduOCR(imageBase64, accessToken) {
  * 从云存储下载图片并转为 base64
  */
 async function downloadImageFromCloudStorage(imgUrl) {
-  console.log('从云存储下载图片:', imgUrl)
-  
-  const result = await cloud.downloadFile({
-    fileID: imgUrl
-  })
-  
+  const result = await cloud.downloadFile({ fileID: imgUrl })
   if (result.fileContent) {
-    console.log('图片下载成功, 大小:', result.fileContent.length)
     return result.fileContent.toString('base64')
   }
-  
   throw new Error('下载文件内容为空')
 }
 
+// ============================================
+// 商品名识别核心逻辑
+// ============================================
+
 /**
- * 解析订单（通用解析逻辑）
+ * 检查是否为支付/金额/时间提示（应该排除的行）
+ */
+function isPaymentOrAmountHint(text) {
+  // 匹配时间 + 金额的模式："5天18时后自动扣款5.73元"
+  if (/\d+天\d+时/.test(text)) return true
+  if (/自动扣款/.test(text)) return true
+  if (/先用后付/.test(text)) return true
+  if (/确认收货后/.test(text)) return true
+  if (/天[后内].*扣/.test(text)) return true
+  if (/时后.*扣/.test(text)) return true
+  
+  // 匹配单独的金额提示："XX元"（没有其他有意义文字）
+  if (/^\s*\d+\.?\d*\s*元\s*$/.test(text)) return true
+  
+  // 支付状态提示
+  if (/已支付|待支付|支付成功|付款成功/.test(text)) return true
+  if (/待扣款|已扣款|扣款成功/.test(text)) return true
+  
+  return false
+}
+
+/**
+ * 检查是否为物流信息
+ */
+function isLogisticsInfo(text) {
+  const logisticsPatterns = [
+    '已签收', '已发货', '派送中', '运输中', '已揽收',
+    '快递员', '派件', '取件', '驿站', '快递柜',
+    '京东物流', '京东快递', '圆通', '中通', '申通', '韵达', '顺丰', '极兔',
+    '电子面单', '运单号', '快递单号'
+  ]
+  return logisticsPatterns.some(p => text.includes(p))
+}
+
+/**
+ * 检查是否为地址或电话
+ */
+function isAddressOrPhone(text) {
+  if (/\d{3,4}\*\*\*\d{4}/.test(text)) return true
+  if (/(工业园|开发区|路|号|楼|室|栋|单元|街道|镇|村|小区)/.test(text)) return true
+  if (/^[\d\s*]+$/.test(text) && text.length > 8) return true
+  return false
+}
+
+/**
+ * 检查是否为纯价格行
+ */
+function isPriceOnly(text) {
+  // "¥199.00" 或 "实付：99" 或 "￥50"
+  if (/^[\s¥￥实付应付原价合计总计]*\d+\.?\d*[\s¥￥元]*$/.test(text)) return true
+  
+  // 数字占比超过80%
+  const digits = text.replace(/[^0-9.]/g, '')
+  const nonDigits = text.replace(/[0-9.¥￥\s]/g, '')
+  if (digits.length > 0 && nonDigits.length === 0) return true
+  
+  return false
+}
+
+/**
+ * 检查是否为店铺名
+ */
+function isShopName(text) {
+  const shopPatterns = [
+    '旗舰店', '专营店', '专卖店', '官方店', '自营店',
+    '店铺', '官方', '品牌', '京东自营', '天猫'
+  ]
+  return shopPatterns.some(p => text.includes(p))
+}
+
+/**
+ * 检查是否为按钮或操作提示
+ */
+function isButtonOrAction(text) {
+  const actionPatterns = [
+    '售后', '评价', '申请', '投诉', '客服', '联系商家',
+    '查看详情', '查看物流', '申请退款', '确认收货',
+    '再次购买', '追加评价', '分享', '复制'
+  ]
+  return actionPatterns.some(p => text.includes(p))
+}
+
+/**
+ * 计算商品名候选得分（越高越可能是商品名）
+ */
+function scoreProductName(text) {
+  let score = 0
+  
+  // 长度评分：10-80字符最佳
+  const len = text.length
+  if (len >= 10 && len <= 80) score += 30
+  else if (len >= 5 && len <= 120) score += 15
+  else score -= 20
+  
+  // 包含规格信息加分
+  const specPatterns = [
+    /\d+ml/i, /\d+g/i, /\d+kg/i, /\d+片/, /\d+包/, /\d+装/,
+    /婴儿/, /儿童/, /宝宝/, /新生儿/, /幼儿/,
+    /奶粉/, /尿不湿/, /纸尿裤/, /湿巾/, /衣服/, /裤子/, /玩具/
+  ]
+  specPatterns.forEach(p => {
+    if (p.test(text)) score += 40
+  })
+  
+  // 包含品牌名加分
+  const brands = [
+    '贝亲', '可心柔', 'babycare', '好孩子', '全棉时代', '英氏', '启初',
+    '红色小象', '洁丽雅', '帮宝适', '好奇', '花王', '大王', '尤妮佳',
+    '雀巢', '惠氏', '美赞臣', '爱他美', '飞鹤', '伊利', '君乐宝'
+  ]
+  brands.forEach(b => {
+    if (text.toLowerCase().includes(b.toLowerCase())) score += 50
+  })
+  
+  // 排除项减分
+  if (isPaymentOrAmountHint(text)) score -= 200
+  if (isLogisticsInfo(text)) score -= 200
+  if (isAddressOrPhone(text)) score -= 200
+  if (isPriceOnly(text)) score -= 200
+  if (isShopName(text)) score -= 100
+  if (isButtonOrAction(text)) score -= 100
+  
+  // 包含金额减分（商品名不应该有"X元"）
+  if (/\d+元/.test(text)) score -= 80
+  if (/扣款/.test(text)) score -= 100
+  if (/自动/.test(text) && /扣/.test(text)) score -= 150
+  
+  return score
+}
+
+/**
+ * 解析订单（智能候选评分）
  */
 function parseOrder(texts) {
   console.log('开始解析订单, 文字行数:', texts.length)
+  console.log('原始文字:', texts)
   
-  let productName = ''
-  let price = 0
-  let quantity = 1
-
-  const excludeKeywords = ['售后', '服务', '完成', '感谢', '支持', '订单',
-                           '时间', '地址', '电话', '收货', '支付', '配送',
-                           '查看', '评价', '申请', '客服', '详情', '更多',
-                           '京东物流', '京东快递', '电子面单',
-                           '已签收', '联系商家', '申请退款', '极速发货',
-                           '拼多多', '淘宝', '天猫', '抖音',
-                           // 排除店铺名相关
-                           '店铺', '专营店', '旗舰店', '官方', '旗舰店', '专卖店',
-                           '官方旗舰店', '自营旗舰店', '官方专卖店', '品牌旗舰店',
-                           '京东自营', '天猫旗舰店', '天猫专营', '淘宝店铺',
-                           // 排除支付相关
-                           '扣款', '自动扣款', '先用后付', '确认收货后再付款',
-                           '签收', '快件', '门口', '疑议']
-
-  // 排除明显是支付提示/时间提示的行
-  const isPaymentOrTimeHint = (text) => {
-    // 匹配 "X天X时后自动扣款X元"、"先用后付"、"确认收货后"等
-    if (/\d+天\d+时/.test(text)) return true
-    if (/自动扣款/.test(text)) return true
-    if (/先用后付/.test(text)) return true
-    if (/确认收货后/.test(text)) return true
-    if (/天后自动/.test(text)) return true
-    if (/时后自动/.test(text)) return true
-    return false
-  }
-
-  const isAddressOrPhone = (text) => {
-    if (/\d{3,4}\*\*\*\d{4}/.test(text)) return true
-    if (/(工业园|开发区|路|号|楼|室|栋|单元|街道|镇|村)/.test(text)) return true
-    return false
-  }
-
-  // 检查是否主要是价格数字（排除包含大量数字的行）
-  const isPriceOnly = (text) => {
-    // 如果文本主要是数字和货币符号，认为是价格
-    const digits = text.replace(/[^0-9.]/g, '')
-    const nonDigits = text.replace(/[0-9.¥￥\s]/g, '')
-    // 如果数字占比超过 70%，且没有 meaningful 的文字，认为是价格
-    if (digits.length > 0 && nonDigits.length < 3) {
-      return true
-    }
-    // 单独的价格行（如 "¥199.00" 或 "实付：99"）
-    if (/^[\s¥￥实付应付原价]*\d+\.?\d*[\s¥￥元]*$/.test(text)) {
-      return true
-    }
-    return false
-  }
-
-  // 查找商品名
-  for (const text of texts) {
-    // 跳过纯价格数字的行
-    if (isPriceOnly(text)) {
-      console.log('跳过价格行:', text)
-      continue
-    }
-
-    // 跳过支付提示/时间提示
-    if (isPaymentOrTimeHint(text)) {
-      console.log('跳过支付提示:', text)
-      continue
-    }
-    
-    const hasSpec = /(\d+ml|\d+g|\d+片|\d+包|\d+装|婴儿|儿童|宝宝|奶粉|尿不湿|纸尿裤|爽身露|润肤露|马桶垫|产妇|一次性|抗菌|加厚|夹棉|旅行|酒店|月子|湿巾|洗护|沐浴|护肤|爽身粉|护臀|桃子水|口水|辅食|米粉|果泥|奶瓶|喂养|安抚奶嘴|衣服|裤子|鞋|帽|袜|连体衣|套装|棉服|外套|玩具|积木|摇铃|绘本|图书|拼图|疫苗|体温|保健品|钙|维生素|早教|课程|学习|启蒙)/i.test(text)
-    const hasBrand = /(贝亲|可心柔|babycare|好孩子|全棉时代|英氏|启初|红色小象|洁丽雅|GRACE|帮宝适|好奇|花王|大王|尤妮佳|露安适|妮飘|宜婴|雀巢|惠氏|美赞臣|爱他美|诺优能|合生元|飞鹤|伊利|君乐宝|完达山|贝因美|澳优|海普诺凯|佳贝艾特|蓝河|绵羊奶|可瑞康|牛栏|喜宝|泓乐|特福芬|康维多|美素佳儿)/i.test(text)
-    const shouldExclude = excludeKeywords.some(kw => text.includes(kw))
-    const isAddress = isAddressOrPhone(text)
-    
-    if ((hasSpec || hasBrand) && !shouldExclude && !isAddress && text.length > 5 && text.length < 150) {
-      productName = text.trim()
-      break
-    }
-  }
-
-  // 如果没找到，查找包含母婴关键词的行
+  // 收集所有候选行并评分
+  const candidates = texts.map(text => ({
+    text: text.trim(),
+    score: scoreProductName(text.trim())
+  })).filter(c => c.score > 0)
+  
+  // 按分数排序
+  candidates.sort((a, b) => b.score - a.score)
+  
+  console.log('商品名候选:', candidates.slice(0, 5))
+  
+  // 取最高分作为商品名
+  let productName = candidates.length > 0 ? candidates[0].text : ''
+  
+  // 如果没找到，使用兜底逻辑：找第一个包含母婴关键词的行
   if (!productName) {
     for (const text of texts) {
-      // 跳过纯价格数字的行
-      if (isPriceOnly(text)) {
-        continue
-      }
-
-      // 跳过支付提示/时间提示
-      if (isPaymentOrTimeHint(text)) {
-        continue
-      }
+      const t = text.trim()
+      if (t.length < 5 || t.length > 150) continue
+      if (isPaymentOrAmountHint(t)) continue
+      if (isLogisticsInfo(t)) continue
+      if (isAddressOrPhone(t)) continue
+      if (isPriceOnly(t)) continue
+      if (isShopName(t)) continue
+      if (isButtonOrAction(t)) continue
       
-      const hasBabyKeyword = /(婴儿|儿童|宝宝|母婴|孕妇|产妇|新生儿|幼儿|少儿|童|婴|幼)/i.test(text)
-      const shouldExclude = excludeKeywords.some(kw => text.includes(kw))
-      const isAddress = isAddressOrPhone(text)
-      
-      if (hasBabyKeyword && !shouldExclude && !isAddress && text.length > 5 && text.length < 150) {
-        productName = text.trim()
+      if (/(婴儿|儿童|宝宝|母婴|孕妇|产妇|奶粉|尿布|纸尿裤|湿巾|玩具|衣服)/.test(t)) {
+        productName = t
         break
       }
     }
   }
-
-  // 提取价格
+  
+  // 提取价格（优先找"实付"、"实付款"、"合计"等关键词附近的价格）
+  let price = 0
+  
+  // 先找实付金额
   for (const text of texts) {
-    if (text.includes('¥') || text.includes('￥')) {
-      const priceMatch = text.match(/[¥￥]\s*(\d+\.?\d*)/)
-      if (priceMatch) {
-        const possiblePrice = parseFloat(priceMatch[1])
-        if (possiblePrice > 1 && possiblePrice < 10000) {
-          price = possiblePrice
+    if (text.includes('实付') || text.includes('实付款') || text.includes('合计') || text.includes('总计')) {
+      const match = text.match(/[¥￥]?\s*(\d+\.?\d*)/)
+      if (match) {
+        const p = parseFloat(match[1])
+        if (p > 0 && p < 10000) {
+          price = p
           break
         }
       }
     }
   }
-
-  console.log('解析结果:', { productName, price, quantity })
-  return { productName, price, quantity }
+  
+  // 如果没找到，找任意带 ¥ 的价格
+  if (price === 0) {
+    for (const text of texts) {
+      if (text.includes('¥') || text.includes('￥')) {
+        const match = text.match(/[¥￥]\s*(\d+\.?\d*)/)
+        if (match) {
+          const p = parseFloat(match[1])
+          if (p > 1 && p < 10000) {
+            price = p
+            break
+          }
+        }
+      }
+    }
+  }
+  
+  console.log('解析结果:', { productName, price })
+  return { productName, price, quantity: 1 }
 }
 
 /**
@@ -248,7 +319,7 @@ function recognizeCategory(productName) {
  * 云函数入口函数
  */
 async function main(event, context) {
-  console.log('OCR 云函数被调用, event:', JSON.stringify(event).substring(0, 200))
+  console.log('OCR 云函数被调用')
 
   try {
     const { image, imgUrl } = event
@@ -256,46 +327,17 @@ async function main(event, context) {
     let imageBase64 = null
     
     if (image) {
-      console.log('使用 base64 图片')
       imageBase64 = image
     } else if (imgUrl) {
-      console.log('使用云存储图片:', imgUrl)
       imageBase64 = await downloadImageFromCloudStorage(imgUrl)
     } else {
-      console.log('错误：没有提供图片')
-      return {
-        success: false,
-        error: '请提供图片数据 (image 或 imgUrl)'
-      }
+      return { success: false, error: '请提供图片数据 (image 或 imgUrl)' }
     }
 
-    // 获取百度 Access Token
-    let accessToken
-    try {
-      accessToken = await getBaiduAccessToken()
-    } catch (tokenErr) {
-      console.error('获取 Token 失败:', tokenErr)
-      return {
-        success: false,
-        error: '获取百度授权失败: ' + tokenErr.message
-      }
-    }
+    const accessToken = await getBaiduAccessToken()
+    const result = await baiduOCR(imageBase64, accessToken)
 
-    // 调用百度 OCR
-    let result
-    try {
-      result = await baiduOCR(imageBase64, accessToken)
-    } catch (ocrErr) {
-      console.error('调用百度 OCR 失败:', ocrErr)
-      return {
-        success: false,
-        error: 'OCR 调用失败: ' + ocrErr.message
-      }
-    }
-
-    // 检查百度返回错误
     if (result.error_code) {
-      console.error('百度 OCR 返回错误:', result)
       return {
         success: false,
         error: 'OCR 识别失败: ' + (result.error_msg || '未知错误'),
@@ -303,14 +345,10 @@ async function main(event, context) {
       }
     }
 
-    // 提取文字
     const words = result.words_result || []
     const texts = words.map(item => item.words)
-    console.log('识别到文字行数:', texts.length, '内容:', texts.slice(0, 3).join(' | '))
 
-    // 如果没有识别到任何文字
     if (texts.length === 0) {
-      console.log('没有识别到任何文字')
       return {
         success: true,
         data: {
@@ -327,20 +365,14 @@ async function main(event, context) {
     // 判断平台
     const allText = texts.join(' ')
     let platform = 'jd'
-    
-    if (allText.includes('淘宝') || allText.includes('天猫')) {
-      platform = 'taobao'
-    } else if (allText.includes('拼多多') || allText.includes('拼')) {
-      platform = 'pdd'
-    } else if (allText.includes('抖音')) {
-      platform = 'douyin'
-    }
+    if (allText.includes('淘宝') || allText.includes('天猫')) platform = 'taobao'
+    else if (allText.includes('拼多多')) platform = 'pdd'
+    else if (allText.includes('抖音')) platform = 'douyin'
 
-    // 解析订单信息
     const parsedResult = parseOrder(texts)
     const categoryId = recognizeCategory(parsedResult.productName || '')
 
-    const response = {
+    return {
       success: true,
       data: {
         productName: parsedResult.productName || '未识别商品',
@@ -351,20 +383,13 @@ async function main(event, context) {
         rawTexts: texts.slice(0, 10)
       }
     }
-    
-    console.log('返回结果:', JSON.stringify(response))
-    return response
 
   } catch (error) {
     console.error('OCR 识别失败:', error)
-    return {
-      success: false,
-      error: error.message || '识别失败，请重试'
-    }
+    return { success: false, error: error.message || '识别失败，请重试' }
   }
 }
 
-// 导出
 exports.main = main
 exports.recognizeCategory = recognizeCategory
 exports.parseOrder = parseOrder
