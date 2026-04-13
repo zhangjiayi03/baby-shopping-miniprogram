@@ -1,0 +1,45 @@
+// index.wxs - WXS 模块用于 WXML 模板中的函数调用
+
+var categories = [
+  { id: 0, name: '全部分类' },
+  { id: 1, name: '喂养' },
+  { id: 2, name: '洗护' },
+  { id: 3, name: '服装' },
+  { id: 4, name: '玩具' },
+  { id: 5, name: '医疗' },
+  { id: 6, name: '教育' },
+  { id: 7, name: '其他' }
+];
+
+var platforms = [
+  { id: 0, name: '全部平台' },
+  { id: 'taobao', name: '淘宝' },
+  { id: 'jd', name: '京东' },
+  { id: 'pdd', name: '拼多多' },
+  { id: 'douyin', name: '抖音' },
+  { id: 'meituan', name: '美团' },
+  { id: 'other', name: '其他' }
+];
+
+function getCategoryName(categoryId) {
+  for (var i = 0; i < categories.length; i++) {
+    if (categories[i].id === categoryId) {
+      return categories[i].name;
+    }
+  }
+  return '未知';
+}
+
+function getPlatformName(platform) {
+  for (var i = 0; i < platforms.length; i++) {
+    if (platforms[i].id === platform) {
+      return platforms[i].name;
+    }
+  }
+  return '未知';
+}
+
+module.exports = {
+  getCategoryName: getCategoryName,
+  getPlatformName: getPlatformName
+};

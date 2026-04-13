@@ -1,4 +1,6 @@
 <!--pages/index/index.wxml-->
+<wxs src="./index.wxs" module="utils" />
+
 <view class="container">
   <!-- 预算卡片 -->
   <budget-card 
@@ -53,8 +55,8 @@
         <view class="card-left">
           <view class="product-name">{{item.productName}}</view>
           <view class="product-info">
-            <view class="info-tag">{{getCategoryName(item.categoryId)}}</view>
-            <view class="info-tag">{{getPlatformName(item.platform)}}</view>
+            <view class="info-tag">{{utils.getCategoryName(item.categoryId)}}</view>
+            <view class="info-tag">{{utils.getPlatformName(item.platform)}}</view>
             <text class="info-date">{{item.orderTime}}</text>
           </view>
         </view>
