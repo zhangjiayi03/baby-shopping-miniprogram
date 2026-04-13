@@ -72,18 +72,21 @@
 
 .product-info {
   display: flex;
+  flex-wrap: wrap;
   gap: 15rpx;
   align-items: center;
 }
 
 .info-tag {
-  display: inline-block;
   font-size: 24rpx;
   color: #fff;
   background-color: #1890ff;
   padding: 8rpx 16rpx;
   border-radius: 20rpx;
-  line-height: 1;
+  min-height: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .info-date {
