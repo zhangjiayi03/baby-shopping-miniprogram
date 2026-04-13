@@ -259,7 +259,8 @@ Page({
   },
 
   onGenderChange(e) {
-    this.setData({ 'babyForm.gender': e.detail.value });
+    const gender = e.detail.value === '1' ? 'female' : 'male';
+    this.setData({ 'babyForm.gender': gender });
   },
 
   async saveBabyInfo() {
