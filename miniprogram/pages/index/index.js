@@ -45,14 +45,20 @@ Page({
   },
 
   onLoad() {
+    // 只在 onLoad 时加载，onShow 不重复加载
+    console.log('📄 首页 onLoad');
     this.loadRecords();
     this.calculateStats();
   },
 
   onShow() {
     // 每次显示页面时刷新数据，确保从其他页面返回时能看到最新数据
-    this.refreshRecords();
-    this.calculateStats();
+    console.log('📄 首页 onShow');
+    // 延迟执行避免和 onLoad 竞态
+    if (this.data.recordList.length > 0) {
+      this.refreshRecords();
+      this.calculateStats();
+    }
   },
 
   onPullDownRefresh() {
