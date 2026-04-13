@@ -8,14 +8,8 @@
     resultList: [],
     processing: false,
     editDialogVisible: false,
-    editDialogData: null
-  },
-
-  /**
-   * 计算成功数量
-   */
-  get successCount() {
-    return this.data.resultList.filter(item => item.status === 'success').length;
+    editDialogData: null,
+    successCount: 0
   },
 
   /**
@@ -123,7 +117,8 @@
       const results = await this.ocrBatch(imageList);
       this.setData({
         resultList: results,
-        processing: false
+        processing: false,
+        successCount: results.filter(r => r.status === 'success').length
       });
       wx.hideLoading();
       console.log('✅ 批量识别完成，成功:', results.filter(r => r.status === 'success').length);
@@ -325,7 +320,10 @@
           statusText: '已保存'
         };
 
-        this.setData({ resultList: newList });
+        this.setData({ 
+          resultList: newList,
+          successCount: newList.filter(r => r.status === 'success').length
+        });
 
         wx.showToast({
           title: '保存成功',
@@ -399,7 +397,10 @@
               icon: '💾',
               statusText: '已保存'
             };
-            this.setData({ resultList: newList });
+            this.setData({ 
+              resultList: newList,
+              successCount: newList.filter(r => r.status === 'success').length
+            });
           }
         } else {
           console.error(`❌ 保存失败，result:`, res.result);
