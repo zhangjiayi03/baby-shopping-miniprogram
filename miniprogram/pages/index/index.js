@@ -8,7 +8,6 @@ Page({
     pageSize: 20,
     hasMore: true,
     loading: false,
-    isFirstLoad: true, // 标记是否首次加载
     
     // 筛选条件
     filterCategoryIndex: 0,
@@ -46,21 +45,12 @@ Page({
   },
 
   onLoad() {
-    // 只在 onLoad 时加载，onShow 不重复加载
     console.log('📄 首页 onLoad');
-    this.loadRecords();
-    this.calculateStats();
   },
 
   onShow() {
     // 每次显示页面时刷新数据
-    console.log('📄 首页 onShow, isFirstLoad:', this.data.isFirstLoad);
-    // 首次加载时 onLoad 已经调用过了，跳过
-    if (this.data.isFirstLoad) {
-      this.setData({ isFirstLoad: false });
-      return;
-    }
-    // 后续每次显示都刷新（支持批量上传后查看新记录）
+    console.log('📄 首页 onShow - 刷新数据');
     this.refreshRecords();
     this.calculateStats();
   },
@@ -94,17 +84,23 @@ Page({
 
   // 加载记录列表
   async loadRecords(isRefresh = false) {
-    if (this.data.loading) return;
+    // 防止重复加载
+    if (this.data.loading) {
+      console.log('⏳ 正在加载中，跳过');
+      return;
+    }
     
     this.setData({ loading: true });
     
     try {
+      console.log('📡 加载记录, isRefresh:', isRefresh, 'page:', this.data.page);
+      
       const res = await wx.cloud.callFunction({
         name: 'record',
         data: {
           action: 'list',
           data: {
-            page: this.data.page,
+            page: isRefresh ? 1 : this.data.page,
             pageSize: this.data.pageSize,
             categoryId: this.data.categoryId,
             platform: this.data.platform
@@ -112,16 +108,21 @@ Page({
         }
       });
       
+      console.log('📡 云函数返回:', res.result ? 'success' : 'failed');
+      
       if (res.result && res.result.success) {
-        const { list } = res.result.data;
+        const { list, total } = res.result.data;
+        console.log('📊 获取到记录数:', list.length, '总数:', total);
         
         if (isRefresh) {
+          // 刷新时替换列表
           this.setData({
             recordList: list,
-            page: 1,
+            page: 2,  // 下次加载第2页
             hasMore: list.length >= this.data.pageSize
           });
         } else {
+          // 加载更多时追加
           const newList = [...this.data.recordList, ...list];
           this.setData({
             recordList: newList,
@@ -129,21 +130,28 @@ Page({
             hasMore: list.length >= this.data.pageSize
           });
         }
+      } else {
+        console.error('云函数返回失败:', res.result);
+        // 不清空列表，保持现有数据
+        if (isRefresh) {
+          wx.showToast({ title: '加载失败', icon: 'none' });
+        }
       }
-      
-      wx.hideLoading();
     } catch (error) {
       console.error('加载记录失败:', error);
-      this.setData({ recordList: [], hasMore: false });
-      wx.showToast({ title: '加载失败', icon: 'none' });
+      // 不清空列表，保持现有数据
+      if (isRefresh) {
+        wx.showToast({ title: '网络错误', icon: 'none' });
+      }
     } finally {
-      this.setData({ loading: false, isFirstLoad: false });
+      this.setData({ loading: false });
       wx.stopPullDownRefresh();
     }
   },
 
-  // 刷新记录
+  // 刷新记录（重置分页）
   refreshRecords() {
+    this.setData({ page: 1 });
     this.loadRecords(true);
   },
 
@@ -189,6 +197,8 @@ Page({
   // 执行删除
   async deleteRecord(id) {
     try {
+      wx.showLoading({ title: '删除中...' });
+      
       const res = await wx.cloud.callFunction({
         name: 'record',
         data: { 
@@ -197,13 +207,18 @@ Page({
         }
       });
       
+      wx.hideLoading();
+      
       if (res.result && res.result.success) {
         const newList = this.data.recordList.filter(item => item._id !== id);
         this.setData({ recordList: newList });
         wx.showToast({ title: '删除成功', icon: 'success' });
         this.calculateStats();
+      } else {
+        wx.showToast({ title: '删除失败', icon: 'none' });
       }
     } catch (error) {
+      wx.hideLoading();
       console.error('删除失败:', error);
       wx.showToast({ title: '删除失败', icon: 'none' });
     }
