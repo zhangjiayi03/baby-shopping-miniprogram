@@ -5,6 +5,40 @@
   min-height: 100vh;
 }
 
+/* 筛选区 */
+.filter-section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20rpx;
+  margin-bottom: 20rpx;
+  background: #fff;
+  border-radius: 12rpx;
+}
+
+.filter-label {
+  font-size: 28rpx;
+  color: #666;
+}
+
+.filter-picker {
+  margin: 0 10rpx;
+}
+
+.picker-value {
+  display: flex;
+  align-items: center;
+  font-size: 30rpx;
+  color: #ff6b00;
+  font-weight: bold;
+}
+
+.picker-value .arrow {
+  font-size: 20rpx;
+  margin-left: 8rpx;
+  color: #999;
+}
+
 /* 概览卡片 */
 .stats-overview {
   display: flex;

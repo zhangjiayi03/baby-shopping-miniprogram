@@ -1,5 +1,24 @@
 <!--pages/stats/stats.wxml-->
 <view class="container">
+  <!-- 宝宝筛选 -->
+  <view class="filter-section" wx:if="{{babies.length > 1}}">
+    <text class="filter-label">查看</text>
+    <picker 
+      class="filter-picker"
+      mode="selector" 
+      range="{{babies}}" 
+      range-key="nickname"
+      value="{{selectedBabyIndex}}"
+      bindchange="onBabyChange"
+    >
+      <view class="picker-value">
+        {{babies[selectedBabyIndex].nickname}}
+        <text class="arrow">▼</text>
+      </view>
+    </picker>
+    <text class="filter-label">的消费</text>
+  </view>
+
   <!-- 统计概览卡片 -->
   <view class="stats-overview">
     <view class="overview-card today">
@@ -66,7 +85,7 @@
   </view>
   
   <!-- 空状态 -->
-  <view class="empty-state" wx:if="{{!hasData}}">
+  <view class="empty-state" wx:if="{{!hasData && !loading}}">
     <text class="empty-icon">📊</text>
     <text class="empty-text">暂无统计数据</text>
     <text class="empty-hint">开始记账后，这里会显示你的消费分析</text>
