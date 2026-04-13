@@ -53,8 +53,8 @@
         <view class="card-left">
           <view class="product-name">{{item.productName}}</view>
           <view class="product-info">
-            <text class="info-tag">{{getCategoryName(item.categoryId)}}</text>
-            <text class="info-tag">{{getPlatformName(item.platform)}}</text>
+            <view class="info-tag">{{getCategoryName(item.categoryId)}}</view>
+            <view class="info-tag">{{getPlatformName(item.platform)}}</view>
             <text class="info-date">{{item.orderTime}}</text>
           </view>
         </view>
