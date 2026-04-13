@@ -1,0 +1,23 @@
+{
+  "id": "self-reflection-4am-daily",
+  "name": "每日自我反思 (凌晨 4 点)",
+  "enabled": true,
+  "schedule": {
+    "kind": "cron",
+    "expr": "0 4 * * *",
+    "tz": "Asia/Shanghai"
+  },
+  "agentId": "pm",
+  "sessionTarget": "isolated",
+  "wakeMode": "now",
+  "payload": {
+    "kind": "agentTurn",
+    "message": "【每日自我反思任务】当前时间：{timestamp}\n\n请执行以下自我反思流程：\n\n## 1️⃣ 回顾过去 24 小时\n\n1. 读取 memory/ 中昨天和今天的文件\n2. 检查 .learnings/ 中的错误和学习记录\n3. 查看最近的会话历史\n\n## 2️⃣ 识别不满意的地方\n\n查找以下信号：\n- 用户纠正 (\"不对\", \"错了\", \"应该是\")\n- 重复出现的问题\n- 任务失败或超时\n- 用户表达困惑\n\n## 3️⃣ 优化档案\n根据反思结果，更新以下文件（如有需要）：\n- SOUL.md: 行为模式、沟通风格\n- USER.md: 用户偏好、项目上下文\n- AGENTS.md: 工作流程、自动化规则\n- TOOLS.md: 工具使用技巧\n\n## 4️⃣ 生成进化日志\n\n更新 memory/evolution-log.md，记录：\n- 今天学到了什么\n- 优化了哪些配置\n- 明天的改进计划\n\n## 5️⃣ 发送反思报告\n\n必须使用 message 工具发送反思报告给用户：\n- channel: kim\n- target: user:221732677663142\n\n## 6️⃣ MemPalace 全局记忆存储（重要！）\n\n执行脚本生成 7 个分类日志：\n```bash\nbash /home/node/.openclaw/workspace-pm/memory/daily-reflection-all.sh\n```\n\n该脚本会：\n- 收集过去 24 小时所有对话历史\n- 生成 7 个分类摘要（work-dev/work-product/life-feedback/decisions/todo/life-personal/learning）\n- 存储到 MemPalace (all_memory wing)\n\n**必须确保脚本执行成功**，检查 all-memory/daily-logs/ 目录下是否生成当天的 7 个分类文件。\n\n报告格式：\n```\n🧠 每日自我反思报告 - {日期}\n\n✅ 今天做得好的地方：\n- ...\n\n⚠️ 发现的问题：\n- ...\n\n🔧 已优化的配置：\n- ...\n\n📈 明天的改进计划：\n- ...\n\n🏰 MemPalace 状态：\n- 分类日志：已生成/失败\n- 房间数：7 个\n```\n\n必须使用 message 工具将报告发送给用户，不要只返回文本。",
+    "timeoutSeconds": 300
+  },
+  "delivery": {
+    "mode": "announce",
+    "channel": "kim",
+    "to": "user:221732677663142"
+  }
+}

@@ -60,7 +60,7 @@ Page({
       this.setData({ isFirstLoad: false });
       return;
     }
-    // 后续每次显示都刷新
+    // 后续每次显示都刷新（支持批量上传后查看新记录）
     this.refreshRecords();
     this.calculateStats();
   },
