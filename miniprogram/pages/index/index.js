@@ -49,6 +49,12 @@ Page({
     this.calculateStats();
   },
 
+  onShow() {
+    // 每次显示页面时刷新数据，确保从其他页面返回时能看到最新数据
+    this.refreshRecords();
+    this.calculateStats();
+  },
+
   onPullDownRefresh() {
     this.refreshRecords();
     this.calculateStats();
