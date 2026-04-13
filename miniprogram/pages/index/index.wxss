@@ -78,12 +78,12 @@
 }
 
 .info-tag {
-  font-size: 24rpx;
+  height: 44rpx;
+  font-size: 22rpx;
   color: #fff;
   background-color: #1890ff;
-  padding: 8rpx 16rpx;
-  border-radius: 20rpx;
-  min-height: 40rpx;
+  padding: 0 16rpx;
+  border-radius: 22rpx;
   display: flex;
   align-items: center;
   justify-content: center;
