@@ -91,10 +91,30 @@ Page({
       });
       
       if (statsRes.result?.success) {
-        const stats = statsRes.result.data;
+        const rawStats = statsRes.result.data;
+        // 格式化数字，小程序模板不支持 .toFixed()
+        const stats = {
+          today: {
+            spent: rawStats.today.spent.toFixed(2),
+            count: rawStats.today.count
+          },
+          yesterday: {
+            spent: rawStats.yesterday.spent.toFixed(2),
+            count: rawStats.yesterday.count
+          },
+          thisMonth: {
+            spent: rawStats.thisMonth.spent.toFixed(2),
+            count: rawStats.thisMonth.count
+          },
+          lastMonth: {
+            spent: rawStats.lastMonth.spent.toFixed(2),
+            count: rawStats.lastMonth.count
+          },
+          changePercent: rawStats.changePercent
+        };
         this.setData({
           stats,
-          hasData: stats.thisMonth.count > 0 || stats.today.count > 0
+          hasData: rawStats.thisMonth.count > 0 || rawStats.today.count > 0
         });
         
         if (this.data.hasData) {

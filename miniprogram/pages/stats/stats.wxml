@@ -23,13 +23,13 @@
   <view class="stats-overview">
     <view class="overview-card today">
       <view class="card-label">今日消费</view>
-      <view class="card-value">¥{{stats.today.spent.toFixed(2)}}</view>
+      <view class="card-value">¥{{stats.today.spent}}</view>
       <view class="card-detail">{{stats.today.count}} 笔订单</view>
     </view>
     
     <view class="overview-card month">
       <view class="card-label">本月消费</view>
-      <view class="card-value">¥{{stats.thisMonth.spent.toFixed(2)}}</view>
+      <view class="card-value">¥{{stats.thisMonth.spent}}</view>
       <view class="card-detail">{{stats.thisMonth.count}} 笔订单 · 预算 {{monthlyBudget}} 元</view>
     </view>
   </view>
