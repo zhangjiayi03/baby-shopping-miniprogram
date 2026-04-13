@@ -1,241 +1,242 @@
 // cloudfunctions/record/index.js
 const cloud = require('wx-server-sdk');
 
-cloud.init({
-  env: cloud.DYNAMIC_CURRENT_ENV
-});
+cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 
 const db = cloud.database();
 const _ = db.command;
 
-// 主函数
 exports.main = async (event, context) => {
   const { action, id, data } = event;
-  
+  const openid = cloud.getWXContext().OPENID;
+
   try {
     switch (action) {
       case 'create':
-        return await createRecord(data);
+        return await createRecord(openid, data);
+      case 'batchCreate':
+        return await batchCreateRecords(openid, data);
       case 'get':
         return await getRecord(id);
       case 'update':
-        return await updateRecord(id, data);
+        return await updateRecord(openid, id, data);
+      case 'batchUpdateBaby':
+        return await batchUpdateBaby(openid, id, data);
       case 'delete':
         return await deleteRecord(id);
       case 'list':
-        return await listRecords(data);
+        return await listRecords(openid, data);
       default:
-        return {
-          success: false,
-          message: '未知操作类型'
-        };
+        return { success: false, message: '未知操作类型' };
     }
   } catch (error) {
     console.error('云函数执行错误:', error);
-    return {
-      success: false,
-      message: error.message,
-      error: error
-    };
+    return { success: false, message: error.message };
   }
 };
 
-// 创建记录
-async function createRecord(data) {
-  console.log('📥 云函数接收到数据:', JSON.stringify(data, null, 2));
-  console.log('typeof data:', typeof data);
-  console.log('data.productName:', data?.productName);
-  
-  // 安全检查
-  if (!data) {
-    return {
-      success: false,
-      message: '数据不能为空'
-    };
+// 创建单条记录
+async function createRecord(openid, data) {
+  if (!data || !data.productName || !data.productName.trim()) {
+    return { success: false, message: '商品名称不能为空' };
   }
-  
-  // 数据验证
-  if (!data.productName || !data.productName.trim()) {
-    console.log('❌ 商品名称为空');
-    return {
-      success: false,
-      message: '商品名称不能为空'
-    };
-  }
-  
+
   const price = parseFloat(data.price);
   if (isNaN(price) || price < 0 || price > 100000) {
-    return {
-      success: false,
-      message: '价格必须在 0-100000 之间'
-    };
+    return { success: false, message: '价格必须在 0-100000 之间' };
   }
-  
-  const quantity = parseInt(data.quantity);
-  if (isNaN(quantity) || quantity <= 0 || quantity > 9999) {
-    return {
-      success: false,
-      message: '数量必须在 1-9999 之间'
-    };
-  }
-  
-  const categoryId = parseInt(data.categoryId);
-  if (isNaN(categoryId) || categoryId < 1 || categoryId > 7) {
-    return {
-      success: false,
-      message: '分类 ID 无效'
-    };
-  }
-  
+
+  const quantity = parseInt(data.quantity) || 1;
+  const categoryId = parseInt(data.categoryId) || 7;
+  const platform = data.platform || 'other';
+
   const validPlatforms = ['taobao', 'jd', 'pdd', 'douyin', 'meituan', 'other'];
-  if (!validPlatforms.includes(data.platform)) {
-    return {
-      success: false,
-      message: '平台类型无效'
-    };
+  if (!validPlatforms.includes(platform)) {
+    return { success: false, message: '平台类型无效' };
   }
-  
-  const now = new Date();
+
+  const now = new Date().toISOString();
+  const batchId = data.batchId || `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
   const record = {
     productName: data.productName.trim(),
     price: price,
     quantity: quantity,
-    unitPrice: data.unitPrice || (price / quantity).toFixed(2),
+    unitPrice: (price / quantity).toFixed(2),
     categoryId: categoryId,
-    platform: data.platform,
-    orderTime: data.orderTime || now.toISOString().split('T')[0],
+    platform: platform,
+    babyId: data.babyId || '',
+    batchId: batchId,
+    orderTime: data.orderTime || now.split('T')[0],
     imageUrl: data.imageUrl || '',
-    createTime: now.toISOString(),
-    updateTime: now.toISOString(),
-    _openid: cloud.getWXContext().OPENID
+    createTime: now,
+    updateTime: now,
+    _openid: openid
   };
-  
-  const res = await db.collection('records').add({
-    data: record
-  });
-  
-  console.log('✅ 记录创建成功，_id:', res._id);
-  console.log('写入的数据:', JSON.stringify(record, null, 2));
-  console.log('当前 OPENID:', cloud.getWXContext().OPENID);
-  
+
+  const res = await db.collection('records').add({ data: record });
+
   return {
     success: true,
-    message: '创建成功',
+    data: { _id: res._id, ...record }
+  };
+}
+
+// 批量创建记录
+async function batchCreateRecords(openid, records) {
+  if (!Array.isArray(records) || records.length === 0) {
+    return { success: false, message: '记录不能为空' };
+  }
+
+  const batchId = `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const now = new Date().toISOString();
+  const validRecords = [];
+
+  for (const data of records) {
+    if (!data.productName || !data.productName.trim()) continue;
+
+    const price = parseFloat(data.price) || 0;
+    const quantity = parseInt(data.quantity) || 1;
+
+    validRecords.push({
+      productName: data.productName.trim(),
+      price: price,
+      quantity: quantity,
+      unitPrice: quantity > 0 ? (price / quantity).toFixed(2) : '0',
+      categoryId: parseInt(data.categoryId) || 7,
+      platform: data.platform || 'other',
+      babyId: data.babyId || '',
+      batchId: batchId,
+      orderTime: data.orderTime || now.split('T')[0],
+      imageUrl: data.imageUrl || '',
+      createTime: now,
+      updateTime: now,
+      _openid: openid
+    });
+  }
+
+  if (validRecords.length === 0) {
+    return { success: false, message: '没有有效记录' };
+  }
+
+  // 批量插入
+  const promises = validRecords.map(r => db.collection('records').add({ data: r }));
+  const results = await Promise.all(promises);
+
+  return {
+    success: true,
     data: {
-      id: res._id,
-      ...record
+      count: results.length,
+      batchId: batchId
     }
   };
 }
 
 // 获取记录详情
 async function getRecord(id) {
-  const res = await db.collection('records')
-    .doc(id)
-    .get();
-  
+  const res = await db.collection('records').doc(id).get();
   if (!res.data) {
-    return {
-      success: false,
-      message: '记录不存在'
-    };
+    return { success: false, message: '记录不存在' };
   }
-  
-  return {
-    success: true,
-    data: res.data
-  };
+  return { success: true, data: res.data };
 }
 
 // 更新记录
-async function updateRecord(id, data) {
-  const now = new Date();
+async function updateRecord(openid, id, data) {
   const updateData = {
     ...data,
-    updateTime: now.toISOString()
+    updateTime: new Date().toISOString()
   };
-  
-  // 如果更新了价格和数量，重新计算单价
+  delete updateData._id;
+  delete updateData._openid;
+
   if (data.price && data.quantity) {
-    updateData.unitPrice = (parseFloat(data.price) / parseInt(data.quantity)).toFixed(2);
+    const quantity = parseInt(data.quantity);
+    if (quantity > 0) {
+      updateData.unitPrice = (parseFloat(data.price) / quantity).toFixed(2);
+    }
   }
-  
-  await db.collection('records')
-    .doc(id)
-    .update({
-      data: updateData
-    });
-  
+
+  await db.collection('records').doc(id).update({ data: updateData });
+  return { success: true, message: '更新成功' };
+}
+
+// 批量更新同一批次的宝宝
+async function batchUpdateBaby(openid, recordId, data) {
+  const { babyId, updateAll } = data;
+
+  // 获取原记录的 batchId
+  const record = await db.collection('records').doc(recordId).get();
+  if (!record.data) {
+    return { success: false, message: '记录不存在' };
+  }
+
+  // 更新当前记录
+  await db.collection('records').doc(recordId).update({
+    data: {
+      babyId: babyId,
+      updateTime: new Date().toISOString()
+    }
+  });
+
+  let updatedCount = 1;
+
+  // 如果需要更新同批次
+  if (updateAll && record.data.batchId) {
+    const res = await db.collection('records')
+      .where({
+        _openid: openid,
+        batchId: record.data.batchId,
+        _id: _.neq(recordId)
+      })
+      .update({
+        data: {
+          babyId: babyId,
+          updateTime: new Date().toISOString()
+        }
+      });
+    updatedCount += res.stats.updated;
+  }
+
   return {
     success: true,
-    message: '更新成功'
+    data: { updatedCount }
   };
 }
 
 // 删除记录
 async function deleteRecord(id) {
-  await db.collection('records')
-    .doc(id)
-    .remove();
-  
-  return {
-    success: true,
-    message: '删除成功'
-  };
+  await db.collection('records').doc(id).remove();
+  return { success: true, message: '删除成功' };
 }
 
 // 查询记录列表
-async function listRecords(params = {}) {
-  const { page = 1, pageSize = 20, categoryId, platform, startDate, endDate } = params;
+async function listRecords(openid, params = {}) {
+  const { page = 1, pageSize = 20, categoryId, platform, babyId } = params;
   const skip = (page - 1) * pageSize;
-  
-  const currentOpenid = cloud.getWXContext().OPENID;
-  console.log('📋 查询列表，当前 OPENID:', currentOpenid);
-  console.log('查询参数:', JSON.stringify(params, null, 2));
-  
-  let query = db.collection('records');
-  
-  // 构建查询条件
-  const conditions = [];
-  
+
+  const conditions = [{ _openid: openid }];
+
   if (categoryId) {
     conditions.push({ categoryId: parseInt(categoryId) });
   }
-  
+
   if (platform) {
     conditions.push({ platform: platform });
   }
-  
-  if (startDate || endDate) {
-    const dateCondition = {};
-    if (startDate) {
-      dateCondition.orderTime = _.gte(startDate);
-    }
-    if (endDate) {
-      dateCondition.orderTime = _.lte(endDate);
-    }
-    conditions.push(dateCondition);
+
+  if (babyId) {
+    conditions.push({ babyId: babyId });
   }
-  
-  // 只查询当前用户的记录
-  conditions.push({
-    _openid: currentOpenid
-  });
-  
-  let result = query;
-  if (conditions.length > 0) {
-    result = query.where(_.and(conditions));
-  }
-  
-  const total = await result.count();
-  console.log('📊 查询结果总数:', total.total);
-  
-  const records = await result
+
+  const query = db.collection('records').where(_.and(conditions));
+  const total = await query.count();
+  const records = await query
     .orderBy('createTime', 'desc')
     .skip(skip)
     .limit(pageSize)
     .get();
-  
+
   return {
     success: true,
     data: {

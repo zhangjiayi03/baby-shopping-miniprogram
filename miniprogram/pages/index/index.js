@@ -12,8 +12,10 @@ Page({
     // 筛选条件
     filterCategoryIndex: 0,
     filterPlatformIndex: 0,
+    filterBabyIndex: 0,
     categoryId: null,
     platform: null,
+    babyId: null,
     
     // 分类和平台选项
     categories: [
@@ -35,6 +37,9 @@ Page({
       { id: 'meituan', name: '美团' },
       { id: 'other', name: '其他' }
     ],
+    babies: [
+      { id: 0, name: '全部宝宝', nickname: '全部宝宝' }
+    ],
     
     // 预算和统计数据
     monthlyBudget: 2000,
@@ -46,10 +51,10 @@ Page({
 
   onLoad() {
     console.log('📄 首页 onLoad');
+    this.loadBabies();
   },
 
   onShow() {
-    // 每次显示页面时刷新数据
     console.log('📄 首页 onShow - 刷新数据');
     this.refreshRecords();
     this.calculateStats();
@@ -58,6 +63,27 @@ Page({
   onPullDownRefresh() {
     this.refreshRecords();
     this.calculateStats();
+  },
+
+  // 加载宝宝列表
+  async loadBabies() {
+    try {
+      const res = await wx.cloud.callFunction({
+        name: 'babies',
+        data: { action: 'list' }
+      });
+
+      if (res.result && res.result.success) {
+        const babies = res.result.data;
+        const babyOptions = [
+          { id: 0, name: '全部宝宝', nickname: '全部宝宝' },
+          ...babies.map(b => ({ id: b._id, name: b.nickname, nickname: b.nickname }))
+        ];
+        this.setData({ babies: babyOptions });
+      }
+    } catch (error) {
+      console.error('加载宝宝列表失败:', error);
+    }
   },
 
   // 计算统计数据
@@ -84,17 +110,12 @@ Page({
 
   // 加载记录列表
   async loadRecords(isRefresh = false) {
-    // 防止重复加载
-    if (this.data.loading) {
-      console.log('⏳ 正在加载中，跳过');
-      return;
-    }
+    if (this.data.loading) return;
     
     this.setData({ loading: true });
     
     try {
-      console.log('📡 加载记录, isRefresh:', isRefresh, 'page:', this.data.page);
-      
+      // 获取记录列表
       const res = await wx.cloud.callFunction({
         name: 'record',
         data: {
@@ -103,45 +124,46 @@ Page({
             page: isRefresh ? 1 : this.data.page,
             pageSize: this.data.pageSize,
             categoryId: this.data.categoryId,
-            platform: this.data.platform
+            platform: this.data.platform,
+            babyId: this.data.babyId
           }
         }
       });
       
-      console.log('📡 云函数返回:', res.result ? 'success' : 'failed');
-      
       if (res.result && res.result.success) {
-        const { list, total } = res.result.data;
-        console.log('📊 获取到记录数:', list.length, '总数:', total);
+        const { list } = res.result.data;
+        
+        // 获取宝宝信息映射
+        const babyMap = {};
+        this.data.babies.forEach(b => {
+          if (b.id !== 0) babyMap[b.id] = b.nickname;
+        });
+        
+        // 给每条记录添加宝宝昵称
+        const processedList = list.map(item => ({
+          ...item,
+          babyNickname: babyMap[item.babyId] || ''
+        }));
         
         if (isRefresh) {
-          // 刷新时替换列表
           this.setData({
-            recordList: list,
-            page: 2,  // 下次加载第2页
-            hasMore: list.length >= this.data.pageSize
+            recordList: processedList,
+            page: 2,
+            hasMore: processedList.length >= this.data.pageSize
           });
         } else {
-          // 加载更多时追加
-          const newList = [...this.data.recordList, ...list];
+          const newList = [...this.data.recordList, ...processedList];
           this.setData({
             recordList: newList,
             page: this.data.page + 1,
-            hasMore: list.length >= this.data.pageSize
+            hasMore: processedList.length >= this.data.pageSize
           });
-        }
-      } else {
-        console.error('云函数返回失败:', res.result);
-        // 不清空列表，保持现有数据
-        if (isRefresh) {
-          wx.showToast({ title: '加载失败', icon: 'none' });
         }
       }
     } catch (error) {
       console.error('加载记录失败:', error);
-      // 不清空列表，保持现有数据
       if (isRefresh) {
-        wx.showToast({ title: '网络错误', icon: 'none' });
+        wx.showToast({ title: '加载失败', icon: 'none' });
       }
     } finally {
       this.setData({ loading: false });
@@ -149,7 +171,7 @@ Page({
     }
   },
 
-  // 刷新记录（重置分页）
+  // 刷新记录
   refreshRecords() {
     this.setData({ page: 1 });
     this.loadRecords(true);
@@ -165,48 +187,35 @@ Page({
   // 跳转详情页
   goToDetail(e) {
     const id = e.currentTarget.dataset.id;
-    wx.navigateTo({
-      url: `/pages/detail/detail?id=${id}`
-    });
+    wx.navigateTo({ url: `/pages/detail/detail?id=${id}` });
   },
 
   // 编辑记录
   onEdit(e) {
     const id = e.currentTarget.dataset.id;
-    wx.navigateTo({
-      url: `/pages/detail/detail?id=${id}&mode=edit`
-    });
+    wx.navigateTo({ url: `/pages/detail/detail?id=${id}&mode=edit` });
   },
 
   // 删除记录
   onDelete(e) {
     const id = e.currentTarget.dataset.id;
-    
     wx.showModal({
       title: '确认删除',
-      content: '确定要删除这条记录吗？删除后无法恢复。',
+      content: '确定要删除这条记录吗？',
       confirmColor: '#ff4d4f',
       success: (res) => {
-        if (res.confirm) {
-          this.deleteRecord(id);
-        }
+        if (res.confirm) this.deleteRecord(id);
       }
     });
   },
 
-  // 执行删除
   async deleteRecord(id) {
     try {
       wx.showLoading({ title: '删除中...' });
-      
       const res = await wx.cloud.callFunction({
         name: 'record',
-        data: { 
-          action: 'delete', 
-          id: id 
-        }
+        data: { action: 'delete', id }
       });
-      
       wx.hideLoading();
       
       if (res.result && res.result.success) {
@@ -214,55 +223,47 @@ Page({
         this.setData({ recordList: newList });
         wx.showToast({ title: '删除成功', icon: 'success' });
         this.calculateStats();
-      } else {
-        wx.showToast({ title: '删除失败', icon: 'none' });
       }
     } catch (error) {
       wx.hideLoading();
-      console.error('删除失败:', error);
       wx.showToast({ title: '删除失败', icon: 'none' });
     }
   },
 
-  // 分类筛选
+  // 筛选变化
   onCategoryFilterChange(e) {
     const index = e.detail.value;
     const category = this.data.categories[index];
-    
     this.setData({
       filterCategoryIndex: index,
       categoryId: index > 0 ? category.id : null,
       page: 1,
       recordList: []
     });
-    
     this.loadRecords(true);
   },
 
-  // 平台筛选
   onPlatformFilterChange(e) {
     const index = e.detail.value;
     const platform = this.data.platforms[index];
-    
     this.setData({
       filterPlatformIndex: index,
       platform: index > 0 ? platform.id : null,
       page: 1,
       recordList: []
     });
-    
     this.loadRecords(true);
   },
 
-  // 获取分类名称
-  getCategoryName(categoryId) {
-    const category = this.data.categories.find(c => c.id === categoryId);
-    return category ? category.name : '未知';
-  },
-
-  // 获取平台名称
-  getPlatformName(platform) {
-    const platformItem = this.data.platforms.find(p => p.id === platform);
-    return platformItem ? platformItem.name : '未知';
+  onBabyFilterChange(e) {
+    const index = e.detail.value;
+    const baby = this.data.babies[index];
+    this.setData({
+      filterBabyIndex: index,
+      babyId: index > 0 ? baby.id : null,
+      page: 1,
+      recordList: []
+    });
+    this.loadRecords(true);
   }
 });

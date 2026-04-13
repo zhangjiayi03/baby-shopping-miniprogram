@@ -56,6 +56,10 @@
   font-weight: bold;
 }
 
+.baby-name {
+  color: #ff6b00;
+}
+
 /* 编辑表单样式 */
 .edit-view {
   background-color: #fff;
@@ -147,4 +151,73 @@
 .btn-cancel {
   background-color: #f0f0f0;
   color: #666;
+}
+
+/* 批量修改弹窗 */
+.batch-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+  position: relative;
+  width: 80%;
+  background-color: #fff;
+  border-radius: 16rpx;
+  padding: 40rpx;
+  text-align: center;
+}
+
+.modal-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 20rpx;
+}
+
+.modal-desc {
+  font-size: 28rpx;
+  color: #666;
+  margin-bottom: 40rpx;
+  line-height: 1.5;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 20rpx;
+}
+
+.modal-btn {
+  flex: 1;
+  height: 80rpx;
+  line-height: 80rpx;
+  font-size: 28rpx;
+  border-radius: 40rpx;
+  border: none;
+}
+
+.modal-btn.cancel {
+  background-color: #f0f0f0;
+  color: #666;
+}
+
+.modal-btn.confirm {
+  background-color: #ff6b00;
+  color: #fff;
 }

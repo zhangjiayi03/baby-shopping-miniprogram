@@ -2,6 +2,7 @@
 Page({
   data: {
     recordId: '',
+    batchId: '',
     imageUrl: '',
     productName: '',
     price: '',
@@ -9,6 +10,8 @@ Page({
     unitPrice: '',
     categoryName: '',
     platformName: '',
+    babyId: '',
+    babyNickname: '',
     orderTime: '',
     createTime: '',
     
@@ -18,10 +21,21 @@ Page({
       productName: '',
       price: '',
       quantity: 1,
+      babyIndex: 0,
       categoryIndex: 0,
       platformIndex: 0,
       orderTime: ''
     },
+    
+    // 批量修改弹窗
+    showBatchModal: false,
+    batchCount: 0,
+    pendingBabyId: '',
+    
+    // 宝宝列表
+    babies: [
+      { id: '', nickname: '不关联' }
+    ],
     
     // 分类选项
     categories: [
@@ -46,18 +60,34 @@ Page({
   },
 
   onLoad(options) {
-    // 从参数获取记录 ID
     if (options.id) {
       this.setData({ recordId: options.id });
-      this.loadRecordDetail(options.id);
-    } else {
-      wx.showToast({
-        title: '记录 ID 缺失',
-        icon: 'none'
+      this.loadBabies().then(() => {
+        this.loadRecordDetail(options.id);
       });
-      setTimeout(() => {
-        wx.navigateBack();
-      }, 1500);
+    } else {
+      wx.showToast({ title: '记录 ID 缺失', icon: 'none' });
+      setTimeout(() => wx.navigateBack(), 1500);
+    }
+  },
+
+  // 加载宝宝列表
+  async loadBabies() {
+    try {
+      const res = await wx.cloud.callFunction({
+        name: 'babies',
+        data: { action: 'list' }
+      });
+      
+      if (res.result && res.result.success) {
+        const babies = [
+          { id: '', nickname: '不关联' },
+          ...res.result.data.map(b => ({ id: b._id, nickname: b.nickname }))
+        ];
+        this.setData({ babies });
+      }
+    } catch (error) {
+      console.error('加载宝宝列表失败:', error);
     }
   },
 
@@ -82,163 +112,215 @@ Page({
 
   // 设置记录数据
   setRecordData(data) {
-    const category = this.data.categories.find(c => c.id === data.categoryId) || this.data.categories[0];
-    const platform = this.data.platforms.find(p => p.id === data.platform) || this.data.platforms[0];
     const categoryIndex = this.data.categories.findIndex(c => c.id === data.categoryId);
     const platformIndex = this.data.platforms.findIndex(p => p.id === data.platform);
+    const babyIndex = this.data.babies.findIndex(b => b.id === (data.babyId || ''));
+    
+    const baby = this.data.babies.find(b => b.id === data.babyId);
     
     this.setData({
+      batchId: data.batchId || '',
       imageUrl: data.imageUrl || '',
       productName: data.productName || '',
       price: data.price || '',
       quantity: data.quantity || 1,
       unitPrice: data.unitPrice || '',
-      categoryName: category.name,
-      platformName: platform.name,
+      categoryName: this.data.categories[categoryIndex >= 0 ? categoryIndex : 6]?.name || '其他',
+      platformName: this.data.platforms[platformIndex >= 0 ? platformIndex : 5]?.name || '其他',
+      babyId: data.babyId || '',
+      babyNickname: baby?.nickname || '',
       orderTime: data.orderTime || '',
       createTime: data.createTime || '',
       
-      // 初始化编辑数据
       'editData.productName': data.productName || '',
-      'editData.price': data.price || '',
-      'editData.quantity': data.quantity || 1,
-      'editData.categoryIndex': categoryIndex >= 0 ? categoryIndex : 0,
-      'editData.platformIndex': platformIndex >= 0 ? platformIndex : 0,
+      'editData.price': String(data.price || ''),
+      'editData.quantity': String(data.quantity || 1),
+      'editData.babyIndex': babyIndex >= 0 ? babyIndex : 0,
+      'editData.categoryIndex': categoryIndex >= 0 ? categoryIndex : 6,
+      'editData.platformIndex': platformIndex >= 0 ? platformIndex : 5,
       'editData.orderTime': data.orderTime || new Date().toISOString().split('T')[0]
     });
   },
 
-  // 预览图片
   previewImage() {
     if (!this.data.imageUrl) return;
-    
-    wx.previewImage({
-      urls: [this.data.imageUrl],
-      current: this.data.imageUrl
-    });
+    wx.previewImage({ urls: [this.data.imageUrl], current: this.data.imageUrl });
   },
 
-  // 开始编辑
   startEdit() {
     this.setData({ isEditing: true });
   },
 
-  // 取消编辑
   cancelEdit() {
-    // 恢复原始数据
+    const categoryIndex = this.data.categories.findIndex(c => c.name === this.data.categoryName);
+    const platformIndex = this.data.platforms.findIndex(p => p.name === this.data.platformName);
+    const babyIndex = this.data.babies.findIndex(b => b.id === this.data.babyId);
+    
     this.setData({
       isEditing: false,
       'editData.productName': this.data.productName,
-      'editData.price': this.data.price,
-      'editData.quantity': this.data.quantity,
+      'editData.price': String(this.data.price),
+      'editData.quantity': String(this.data.quantity),
+      'editData.babyIndex': babyIndex >= 0 ? babyIndex : 0,
+      'editData.categoryIndex': categoryIndex >= 0 ? categoryIndex : 6,
+      'editData.platformIndex': platformIndex >= 0 ? platformIndex : 5,
       'editData.orderTime': this.data.orderTime
-    });
-    
-    // 重新查找分类和平台的索引
-    const category = this.data.categories.find(c => c.name === this.data.categoryName);
-    const platform = this.data.platforms.find(p => p.name === this.data.platformName);
-    const categoryIndex = this.data.categories.findIndex(c => c.name === this.data.categoryName);
-    const platformIndex = this.data.platforms.findIndex(p => p.name === this.data.platformName);
-    
-    this.setData({
-      'editData.categoryIndex': categoryIndex >= 0 ? categoryIndex : 0,
-      'editData.platformIndex': platformIndex >= 0 ? platformIndex : 0
     });
   },
 
-  // 保存编辑
   async saveEdit() {
-    const { editData } = this.data;
+    const { editData, batchId, recordId, babies } = this.data;
     
-    if (!editData.productName || !editData.productName.trim()) {
-      wx.showToast({ title: '请输入商品名称', icon: 'none' });
+    if (!editData.productName?.trim()) {
+      return wx.showToast({ title: '请输入商品名称', icon: 'none' });
+    }
+    
+    const price = parseFloat(editData.price);
+    if (isNaN(price) || price <= 0) {
+      return wx.showToast({ title: '请输入有效价格', icon: 'none' });
+    }
+    
+    const quantity = parseInt(editData.quantity);
+    if (isNaN(quantity) || quantity <= 0) {
+      return wx.showToast({ title: '请输入有效数量', icon: 'none' });
+    }
+    
+    const newBabyId = babies[editData.babyIndex]?.id || '';
+    const babyChanged = newBabyId !== this.data.babyId;
+    
+    // 如果宝宝变了且有批次ID，弹出询问
+    if (babyChanged && batchId) {
+      this.setData({
+        showBatchModal: true,
+        pendingBabyId: newBabyId,
+        batchCount: 0
+      });
+      await this.getBatchCount(batchId);
       return;
     }
     
-    if (!editData.price || parseFloat(editData.price) <= 0) {
-      wx.showToast({ title: '请输入有效价格', icon: 'none' });
-      return;
+    // 直接保存
+    await this.doSaveEdit(newBabyId, false);
+  },
+
+  // 获取同批次记录数
+  async getBatchCount(batchId) {
+    try {
+      const res = await wx.cloud.callFunction({
+        name: 'record',
+        data: {
+          action: 'list',
+          data: { page: 1, pageSize: 100, batchId }
+        }
+      });
+      
+      if (res.result?.success) {
+        const count = res.result.data.list.filter(r => r._id !== this.data.recordId).length;
+        this.setData({ batchCount: count });
+      }
+    } catch (error) {
+      console.error('获取批次数量失败:', error);
     }
-    
-    if (!editData.quantity || parseInt(editData.quantity) <= 0) {
-      wx.showToast({ title: '请输入有效数量', icon: 'none' });
-      return;
-    }
+  },
+
+  // 关闭批量弹窗，仅修改当前
+  async closeBatchModal() {
+    const newBabyId = this.data.pendingBabyId;
+    this.setData({ showBatchModal: false });
+    await this.doSaveEdit(newBabyId, false);
+  },
+
+  // 确认批量修改
+  async confirmBatchUpdate() {
+    const newBabyId = this.data.pendingBabyId;
+    this.setData({ showBatchModal: false });
+    await this.doSaveEdit(newBabyId, true);
+  },
+
+  // 执行保存
+  async doSaveEdit(newBabyId, updateAll) {
+    const { editData, recordId, babies, categories, platforms } = this.data;
     
     try {
       wx.showLoading({ title: '保存中...' });
       
+      if (updateAll) {
+        // 批量更新
+        const res = await wx.cloud.callFunction({
+          name: 'record',
+          data: {
+            action: 'batchUpdateBaby',
+            id: recordId,
+            data: { babyId: newBabyId, updateAll: true }
+          }
+        });
+        
+        if (res.result?.success) {
+          wx.showToast({ title: `已更新 ${res.result.data.updatedCount} 条`, icon: 'success' });
+        }
+      }
+      
+      // 更新当前记录其他字段
       const updateData = {
         productName: editData.productName.trim(),
-        price: editData.price,
+        price: parseFloat(editData.price),
         quantity: parseInt(editData.quantity),
-        categoryId: this.data.categories[editData.categoryIndex].id,
-        platform: this.data.platforms[editData.platformIndex].id,
-        orderTime: editData.orderTime,
-        updateTime: new Date().toISOString()
+        categoryId: categories[editData.categoryIndex].id,
+        platform: platforms[editData.platformIndex].id,
+        babyId: newBabyId,
+        orderTime: editData.orderTime
       };
       
-      updateData.unitPrice = (parseFloat(editData.price) / parseInt(editData.quantity)).toFixed(2);
-      
-      const res = await wx.cloud.callFunction({
+      await wx.cloud.callFunction({
         name: 'record',
-        data: { 
-          action: 'update', 
-          id: this.data.recordId,
-          data: updateData 
-        }
+        data: { action: 'update', id: recordId, data: updateData }
       });
       
       wx.hideLoading();
-      if (res.result && res.result.success) {
-        wx.showToast({ title: '保存成功', icon: 'success' });
-        const category = this.data.categories[editData.categoryIndex];
-        const platform = this.data.platforms[editData.platformIndex];
-        
-        this.setData({
-          isEditing: false,
-          productName: updateData.productName,
-          price: updateData.price,
-          quantity: updateData.quantity,
-          unitPrice: updateData.unitPrice,
-          categoryName: category.name,
-          platformName: platform.name,
-          orderTime: updateData.orderTime
-        });
-      } else {
-        throw new Error('更新失败');
-      }
+      
+      const baby = babies.find(b => b.id === newBabyId);
+      this.setData({
+        isEditing: false,
+        productName: updateData.productName,
+        price: updateData.price,
+        quantity: updateData.quantity,
+        unitPrice: (updateData.price / updateData.quantity).toFixed(2),
+        categoryName: categories[editData.categoryIndex].name,
+        platformName: platforms[editData.platformIndex].name,
+        babyId: newBabyId,
+        babyNickname: baby?.nickname || '',
+        orderTime: updateData.orderTime
+      });
+      
+      wx.showToast({ title: '保存成功', icon: 'success' });
+      
     } catch (error) {
-      console.error('保存编辑失败:', error);
       wx.hideLoading();
+      console.error('保存失败:', error);
       wx.showToast({ title: '保存失败', icon: 'none' });
     }
   },
 
-  // 删除记录
   async deleteRecord() {
     wx.showModal({
       title: '确认删除',
-      content: '确定要删除这条记录吗？删除后无法恢复。',
+      content: '确定要删除这条记录吗？',
+      confirmColor: '#ff4d4f',
       success: async (res) => {
         if (res.confirm) {
           try {
             wx.showLoading({ title: '删除中...' });
-            
-            const res = await wx.cloud.callFunction({
+            const result = await wx.cloud.callFunction({
               name: 'record',
               data: { action: 'delete', id: this.data.recordId }
             });
             
             wx.hideLoading();
-            if (res.result && res.result.success) {
+            if (result.result?.success) {
               wx.showToast({ title: '删除成功', icon: 'success' });
               setTimeout(() => wx.navigateBack(), 1500);
-            } else {
-              throw new Error('删除失败');
             }
           } catch (error) {
-            console.error('删除记录失败:', error);
             wx.hideLoading();
             wx.showToast({ title: '删除失败', icon: 'none' });
           }
@@ -247,40 +329,12 @@ Page({
     });
   },
 
-  // 表单输入处理
-  onProductNameInput(e) {
-    this.setData({
-      'editData.productName': e.detail.value
-    });
-  },
-
-  onPriceInput(e) {
-    this.setData({
-      'editData.price': e.detail.value
-    });
-  },
-
-  onQuantityInput(e) {
-    this.setData({
-      'editData.quantity': e.detail.value
-    });
-  },
-
-  onCategoryChange(e) {
-    this.setData({
-      'editData.categoryIndex': e.detail.value
-    });
-  },
-
-  onPlatformChange(e) {
-    this.setData({
-      'editData.platformIndex': e.detail.value
-    });
-  },
-
-  onDateChange(e) {
-    this.setData({
-      'editData.orderTime': e.detail.value
-    });
-  }
+  // 表单输入
+  onProductNameInput(e) { this.setData({ 'editData.productName': e.detail.value }); },
+  onPriceInput(e) { this.setData({ 'editData.price': e.detail.value }); },
+  onQuantityInput(e) { this.setData({ 'editData.quantity': e.detail.value }); },
+  onBabyChange(e) { this.setData({ 'editData.babyIndex': e.detail.value }); },
+  onCategoryChange(e) { this.setData({ 'editData.categoryIndex': e.detail.value }); },
+  onPlatformChange(e) { this.setData({ 'editData.platformIndex': e.detail.value }); },
+  onDateChange(e) { this.setData({ 'editData.orderTime': e.detail.value }); }
 });

@@ -35,6 +35,11 @@
       </view>
       
       <view class="info-item">
+        <text class="label">宝宝</text>
+        <text class="value baby-name">{{babyNickname || '未关联'}}</text>
+      </view>
+      
+      <view class="info-item">
         <text class="label">分类</text>
         <text class="value">{{categoryName}}</text>
       </view>
@@ -100,6 +105,21 @@
         />
       </view>
       
+      <!-- 宝宝 -->
+      <view class="form-item">
+        <text class="form-label">宝宝</text>
+        <picker 
+          class="form-picker"
+          mode="selector" 
+          range="{{babies}}" 
+          range-key="nickname"
+          value="{{editData.babyIndex}}"
+          bindchange="onBabyChange"
+        >
+          <view class="picker-value">{{babies[editData.babyIndex].nickname || '请选择'}}</view>
+        </picker>
+      </view>
+      
       <!-- 分类 -->
       <view class="form-item">
         <text class="form-label">分类</text>
@@ -148,6 +168,19 @@
     <view class="action-section">
       <button class="btn btn-save" bindtap="saveEdit">保存</button>
       <button class="btn btn-cancel" bindtap="cancelEdit">取消</button>
+    </view>
+  </view>
+  
+  <!-- 同批次修改弹窗 -->
+  <view class="batch-modal" wx:if="{{showBatchModal}}">
+    <view class="modal-mask" bindtap="closeBatchModal"></view>
+    <view class="modal-content">
+      <view class="modal-title">同步修改</view>
+      <view class="modal-desc">检测到本记录来自批量上传，是否同时修改同批次其他 {{batchCount}} 条记录的宝宝信息？</view>
+      <view class="modal-actions">
+        <button class="modal-btn cancel" bindtap="closeBatchModal">仅修改当前</button>
+        <button class="modal-btn confirm" bindtap="confirmBatchUpdate">同步修改全部</button>
+      </view>
     </view>
   </view>
 </view>

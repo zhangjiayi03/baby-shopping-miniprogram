@@ -92,6 +92,10 @@
   justify-content: center;
 }
 
+.baby-tag {
+  background-color: #ff6b00;
+}
+
 .info-date {
   font-size: 24rpx;
   color: #999;

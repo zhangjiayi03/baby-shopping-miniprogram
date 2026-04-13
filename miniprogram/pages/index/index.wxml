@@ -19,6 +19,19 @@
   <view class="filter-section">
     <picker 
       mode="selector" 
+      range="{{babies}}" 
+      range-key="nickname"
+      value="{{filterBabyIndex}}"
+      bindchange="onBabyFilterChange"
+      class="filter-picker"
+    >
+      <view class="filter-item {{filterBabyIndex > 0 ? 'active' : ''}}">
+        {{babies[filterBabyIndex].nickname}}
+      </view>
+    </picker>
+    
+    <picker 
+      mode="selector" 
       range="{{categories}}" 
       range-key="name"
       value="{{filterCategoryIndex}}"
@@ -55,6 +68,7 @@
         <view class="card-left">
           <view class="product-name">{{item.productName}}</view>
           <view class="product-info">
+            <view class="info-tag baby-tag" wx:if="{{item.babyNickname}}">{{item.babyNickname}}</view>
             <view class="info-tag">{{utils.getCategoryName(item.categoryId)}}</view>
             <view class="info-tag">{{utils.getPlatformName(item.platform)}}</view>
             <text class="info-date">{{item.orderTime}}</text>

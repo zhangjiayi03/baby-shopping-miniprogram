@@ -5,6 +5,24 @@
     <text class="subtitle">一次最多上传 9 张截图</text>
   </view>
 
+  <!-- 宝宝选择 -->
+  <view class="baby-section" wx:if="{{babies.length > 0 && babies[0].id}}">
+    <text class="baby-label">关联宝宝：</text>
+    <picker 
+      class="baby-picker"
+      mode="selector" 
+      range="{{babies}}" 
+      range-key="nickname"
+      value="{{selectedBabyIndex}}"
+      bindchange="onBabyChange"
+    >
+      <view class="picker-value">
+        {{babies[selectedBabyIndex].nickname}}
+        <text class="arrow">▼</text>
+      </view>
+    </picker>
+  </view>
+
   <!-- 图片选择区 -->
   <view class="upload-section">
     <view class="upload-btn" bindtap="chooseImages">
