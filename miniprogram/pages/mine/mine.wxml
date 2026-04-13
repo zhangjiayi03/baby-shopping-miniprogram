@@ -19,21 +19,32 @@
   <view class="section">
     <view class="section-header">
       <text class="section-title">👶 宝宝信息</text>
-      <text class="section-action" bindtap="editBaby">编辑</text>
+      <text class="section-action" bindtap="addBaby">+ 添加</text>
     </view>
-    <view class="baby-info">
-      <view class="baby-item">
-        <text class="baby-label">昵称</text>
-        <text class="baby-value">{{babyInfo.name || '未设置'}}</text>
+    
+    <!-- 宝宝列表 -->
+    <view wx:if="{{babies.length > 0}}" class="baby-list">
+      <view class="baby-card" wx:for="{{babies}}" wx:key="_id">
+        <view class="baby-avatar">{{item.gender === 'female' ? '👧' : '👦'}}</view>
+        <view class="baby-details">
+          <view class="baby-name">{{item.nickname}}</view>
+          <view class="baby-meta">
+            <text wx:if="{{item.birthDate}}">生日: {{item.birthDate}}</text>
+            <text wx:if="{{item.ageMonths !== null}}"> · {{item.ageMonths}}个月</text>
+          </view>
+        </view>
+        <view class="baby-actions">
+          <text class="action-btn" bindtap="editBaby" data-index="{{index}}">编辑</text>
+          <text class="action-btn delete" bindtap="deleteBaby" data-index="{{index}}">删除</text>
+        </view>
       </view>
-      <view class="baby-item">
-        <text class="baby-label">生日</text>
-        <text class="baby-value">{{babyInfo.birthday || '未设置'}}</text>
-      </view>
-      <view class="baby-item">
-        <text class="baby-label">月龄</text>
-        <text class="baby-value">{{babyInfo.age || '-'}}个月</text>
-      </view>
+    </view>
+    
+    <!-- 空状态 -->
+    <view wx:else class="empty-baby">
+      <text class="empty-icon">👶</text>
+      <text class="empty-text">还没有添加宝宝信息</text>
+      <text class="empty-hint" bindtap="addBaby">点击右上角"添加"按钮</text>
     </view>
   </view>
   
@@ -56,7 +67,6 @@
         <text class="budget-label">剩余预算</text>
         <text class="budget-value">¥{{budgetRemaining}}</text>
       </view>
-      <!-- 预算进度条 -->
       <view class="budget-progress">
         <view class="progress-bar" style="width: {{budgetPercent}}%"></view>
       </view>
@@ -111,16 +121,22 @@
   <!-- 编辑宝宝弹窗 -->
   <view class="dialog-mask" wx:if="{{showBabyDialog}}" bindtap="hideBabyDialog">
     <view class="dialog" catchtap="true">
-      <view class="dialog-title">编辑宝宝信息</view>
+      <view class="dialog-title">{{babyForm.id ? '编辑宝宝' : '添加宝宝'}}</view>
       <view class="dialog-content">
         <view class="form-item">
           <text class="form-label">昵称</text>
-          <input class="form-input" value="{{babyForm.name}}" bindinput="onNameInput" placeholder="请输入宝宝昵称" />
+          <input class="form-input" value="{{babyForm.nickname}}" bindinput="onNicknameInput" placeholder="请输入宝宝昵称" />
         </view>
         <view class="form-item">
           <text class="form-label">生日</text>
-          <picker class="form-picker" mode="date" value="{{babyForm.birthday}}" bindchange="onBirthdayChange">
-            <view class="picker-value">{{babyForm.birthday || '选择日期'}}</view>
+          <picker class="form-picker" mode="date" value="{{babyForm.birthDate}}" bindchange="onBirthDateChange">
+            <view class="picker-value">{{babyForm.birthDate || '选择日期'}}</view>
+          </picker>
+        </view>
+        <view class="form-item">
+          <text class="form-label">性别</text>
+          <picker class="form-picker" mode="selector" range="{{['男孩', '女孩']}}" value="{{babyForm.gender === 'female' ? 1 : 0}}" bindchange="onGenderChange">
+            <view class="picker-value">{{babyForm.gender === 'female' ? '女孩' : '男孩'}}</view>
           </picker>
         </view>
       </view>
@@ -138,7 +154,7 @@
       <view class="dialog-content">
         <view class="form-item">
           <text class="form-label">预算金额（元）</text>
-          <input class="form-input" type="number" model:value="{{budgetForm.amount}}" placeholder="请输入预算金额" />
+          <input class="form-input" type="number" value="{{budgetForm.amount}}" bindinput="(e) => this.setData({'budgetForm.amount': e.detail.value})" placeholder="请输入预算金额" />
         </view>
       </view>
       <view class="dialog-footer">

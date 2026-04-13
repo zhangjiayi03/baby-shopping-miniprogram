@@ -94,6 +94,89 @@
   color: #667eea;
 }
 
+/* 宝宝列表 */
+.baby-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.baby-card {
+  display: flex;
+  align-items: center;
+  padding: 20rpx;
+  background: #f9f9f9;
+  border-radius: 12rpx;
+}
+
+.baby-avatar {
+  width: 80rpx;
+  height: 80rpx;
+  background: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40rpx;
+  margin-right: 20rpx;
+}
+
+.baby-details {
+  flex: 1;
+}
+
+.baby-name {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.baby-meta {
+  font-size: 24rpx;
+  color: #999;
+  margin-top: 6rpx;
+}
+
+.baby-actions {
+  display: flex;
+  gap: 16rpx;
+}
+
+.action-btn {
+  font-size: 24rpx;
+  padding: 8rpx 20rpx;
+  border-radius: 16rpx;
+  background: #667eea;
+  color: #fff;
+}
+
+.action-btn.delete {
+  background: #ff4d4f;
+}
+
+.empty-baby {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40rpx 0;
+  color: #999;
+}
+
+.empty-icon {
+  font-size: 60rpx;
+  margin-bottom: 16rpx;
+}
+
+.empty-text {
+  font-size: 28rpx;
+}
+
+.empty-hint {
+  font-size: 24rpx;
+  color: #667eea;
+  margin-top: 8rpx;
+}
+
 /* 宝宝信息 */
 .baby-info {
   display: flex;

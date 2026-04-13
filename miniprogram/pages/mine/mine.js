@@ -14,12 +14,8 @@ Page({
     totalRecords: 0,
     totalSpent: 0,
     
-    // 宝宝信息
-    babyInfo: {
-      name: '',
-      birthday: '',
-      age: null
-    },
+    // 宝宝列表
+    babies: [],
     
     // 预算信息
     monthlyBudget: 2000,
@@ -36,8 +32,10 @@ Page({
     
     // 表单数据
     babyForm: {
-      name: '',
-      birthday: ''
+      id: '',
+      nickname: '',
+      birthDate: '',
+      gender: 'male'
     },
     
     budgetForm: {
@@ -45,14 +43,19 @@ Page({
     },
     
     // 版本信息
-    version: '1.1.0',
+    version: '1.2.0',
     hasUpdate: false
   },
 
   onLoad() {
     this.loadUserInfo();
+    this.loadBabies();
     this.loadStats();
     this.loadSettings();
+  },
+
+  onShow() {
+    this.loadBabies();
   },
 
   // 加载用户信息
@@ -63,12 +66,39 @@ Page({
         data: { action: 'getInfo' }
       });
       
-      if (res.result && res.result.success) {
+      if (res.result?.success) {
         this.setData({ userInfo: res.result.data });
       }
     } catch (error) {
-      // 云函数可能未部署，使用默认值
-      console.log('用户信息加载失败，使用默认值');
+      console.log('用户信息加载失败');
+    }
+  },
+
+  // 加载宝宝列表
+  async loadBabies() {
+    try {
+      const res = await wx.cloud.callFunction({
+        name: 'babies',
+        data: { action: 'list' }
+      });
+      
+      if (res.result?.success) {
+        // 计算月龄
+        const babies = res.result.data.map(baby => {
+          let ageMonths = null;
+          if (baby.birthDate) {
+            const birthDate = new Date(baby.birthDate);
+            const now = new Date();
+            ageMonths = (now.getFullYear() - birthDate.getFullYear()) * 12 + 
+                        (now.getMonth() - birthDate.getMonth());
+            ageMonths = Math.max(0, ageMonths);
+          }
+          return { ...baby, ageMonths };
+        });
+        this.setData({ babies });
+      }
+    } catch (error) {
+      console.error('加载宝宝列表失败:', error);
     }
   },
 
@@ -80,29 +110,24 @@ Page({
         data: { action: 'getStats' }
       });
       
-      if (statsRes.result && statsRes.result.success) {
+      if (statsRes?.result?.success) {
         const stats = statsRes.result.data;
         
-        // 计算总消费
         const allRecordsRes = await wx.cloud.callFunction({
           name: 'record',
           data: { action: 'list', data: { page: 1, pageSize: 1000 } }
         });
         
-        let totalSpent = 0;
-        let totalRecords = 0;
-        
-        if (allRecordsRes.result && allRecordsRes.result.success) {
+        if (allRecordsRes?.result?.success) {
           const records = allRecordsRes.result.data.list || [];
-          totalRecords = records.length;
-          totalSpent = records.reduce((sum, r) => sum + parseFloat(r.price || 0) * (parseInt(r.quantity) || 1), 0);
+          const totalRecords = records.length;
+          const totalSpent = records.reduce((sum, r) => 
+            sum + parseFloat(r.price || 0) * (parseInt(r.quantity) || 1), 0);
           
-          // 计算记录天数
-          const uniqueDays = [...new Set(records.map(r => r.orderTime.split('T')[0]))];
-          const totalDays = uniqueDays.length;
+          const uniqueDays = [...new Set(records.map(r => r.orderTime?.split('T')[0]))];
           
           this.setData({
-            totalDays,
+            totalDays: uniqueDays.length,
             totalRecords,
             totalSpent: parseFloat(totalSpent.toFixed(2)),
             spentThisMonth: stats.thisMonth.spent.toFixed(2)
@@ -119,15 +144,10 @@ Page({
   // 加载设置
   loadSettings() {
     const budget = wx.getStorageSync('monthlyBudget') || 2000;
-    const babyInfo = wx.getStorageSync('babyInfo') || { name: '', birthday: '' };
-    
     this.setData({
       monthlyBudget: budget,
-      babyInfo: babyInfo,
-      budgetForm: { amount: budget },
-      babyForm: { ...babyInfo }
+      budgetForm: { amount: budget }
     });
-    
     this.calculateBudget();
   },
 
@@ -159,15 +179,70 @@ Page({
       budgetPercent: Math.min(percent, 100),
       budgetTip: tip,
       budgetTipClass: tipClass,
-      spentClass: spentClass
+      spentClass
     });
   },
 
-  // 编辑宝宝信息
-  editBaby() {
+  // 添加宝宝
+  addBaby() {
     this.setData({
-      babyForm: { ...this.data.babyInfo },
+      babyForm: {
+        id: '',
+        nickname: '',
+        birthDate: '',
+        gender: 'male'
+      },
       showBabyDialog: true
+    });
+  },
+
+  // 编辑宝宝
+  editBaby(e) {
+    const index = e.currentTarget.dataset.index;
+    const baby = this.data.babies[index];
+    
+    this.setData({
+      babyForm: {
+        id: baby._id,
+        nickname: baby.nickname,
+        birthDate: baby.birthDate,
+        gender: baby.gender || 'male'
+      },
+      showBabyDialog: true
+    });
+  },
+
+  // 删除宝宝
+  deleteBaby(e) {
+    const index = e.currentTarget.dataset.index;
+    const baby = this.data.babies[index];
+    
+    wx.showModal({
+      title: '确认删除',
+      content: `确定要删除"${baby.nickname}"吗？`,
+      confirmColor: '#ff4d4f',
+      success: async (res) => {
+        if (res.confirm) {
+          try {
+            const result = await wx.cloud.callFunction({
+              name: 'babies',
+              data: { action: 'delete', id: baby._id }
+            });
+            
+            if (result.result?.success) {
+              wx.showToast({ title: '删除成功', icon: 'success' });
+              this.loadBabies();
+            } else {
+              wx.showToast({ 
+                title: result.result?.message || '删除失败', 
+                icon: 'none' 
+              });
+            }
+          } catch (error) {
+            wx.showToast({ title: '删除失败', icon: 'none' });
+          }
+        }
+      }
     });
   },
 
@@ -175,51 +250,71 @@ Page({
     this.setData({ showBabyDialog: false });
   },
 
-  onBirthdayChange(e) {
-    this.setData({
-      'babyForm.birthday': e.detail.value
-    });
+  onNicknameInput(e) {
+    this.setData({ 'babyForm.nickname': e.detail.value });
   },
 
-  onNameInput(e) {
-    this.setData({
-      'babyForm.name': e.detail.value
-    });
+  onBirthDateChange(e) {
+    this.setData({ 'babyForm.birthDate': e.detail.value });
   },
 
-  saveBabyInfo() {
-    const { name, birthday } = this.data.babyForm;
+  onGenderChange(e) {
+    this.setData({ 'babyForm.gender': e.detail.value });
+  },
+
+  async saveBabyInfo() {
+    const { id, nickname, birthDate, gender } = this.data.babyForm;
     
-    if (!name || !name.trim()) {
-      wx.showToast({ title: '请输入昵称', icon: 'none' });
-      return;
+    if (!nickname?.trim()) {
+      return wx.showToast({ title: '请输入昵称', icon: 'none' });
     }
     
-    // 计算月龄
-    let age = null;
-    if (birthday) {
-      const birthDate = new Date(birthday);
-      const now = new Date();
-      const months = (now.getFullYear() - birthDate.getFullYear()) * 12 + (now.getMonth() - birthDate.getMonth());
-      age = Math.max(0, months);
+    try {
+      wx.showLoading({ title: '保存中...' });
+      
+      let result;
+      if (id) {
+        // 更新
+        result = await wx.cloud.callFunction({
+          name: 'babies',
+          data: {
+            action: 'update',
+            id,
+            data: { nickname: nickname.trim(), birthDate, gender }
+          }
+        });
+      } else {
+        // 新增
+        result = await wx.cloud.callFunction({
+          name: 'babies',
+          data: {
+            action: 'create',
+            data: { nickname: nickname.trim(), birthDate, gender }
+          }
+        });
+      }
+      
+      wx.hideLoading();
+      
+      if (result.result?.success) {
+        wx.showToast({ title: '保存成功', icon: 'success' });
+        this.setData({ showBabyDialog: false });
+        this.loadBabies();
+      } else {
+        wx.showToast({ 
+          title: result.result?.message || '保存失败', 
+          icon: 'none' 
+        });
+      }
+    } catch (error) {
+      wx.hideLoading();
+      wx.showToast({ title: '保存失败', icon: 'none' });
     }
-    
-    const babyInfo = { name: name.trim(), birthday, age };
-    
-    wx.setStorageSync('babyInfo', babyInfo);
-    this.setData({
-      babyInfo,
-      showBabyDialog: false
-    });
-    
-    wx.showToast({ title: '保存成功', icon: 'success' });
   },
 
   // 编辑预算
   editBudget() {
-    this.setData({
-      showBudgetDialog: true
-    });
+    this.setData({ showBudgetDialog: true });
   },
 
   hideBudgetDialog() {
@@ -230,8 +325,7 @@ Page({
     const amount = parseInt(this.data.budgetForm.amount);
     
     if (!amount || amount <= 0) {
-      wx.showToast({ title: '请输入有效金额', icon: 'none' });
-      return;
+      return wx.showToast({ title: '请输入有效金额', icon: 'none' });
     }
     
     wx.setStorageSync('monthlyBudget', amount);
