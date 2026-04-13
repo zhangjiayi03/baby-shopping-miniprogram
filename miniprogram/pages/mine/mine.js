@@ -269,7 +269,7 @@ Page({
 
   aboutUs() {
     wx.showModal({
-      title: '关于宝宝购物记',
+      title: '关于萌宝账本',
       content: 'Version ' + this.data.version + '\n\n一款专为宝妈设计的购物记账工具，帮助记录宝宝成长过程中的每一笔开销。',
       showCancel: false
     });

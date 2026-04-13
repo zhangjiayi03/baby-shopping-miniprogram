@@ -10,7 +10,7 @@
   "window": {
     "backgroundTextStyle": "light",
     "navigationBarBackgroundColor": "#1890ff",
-    "navigationBarTitleText": "宝宝购物记",
+    "navigationBarTitleText": "萌宝账本",
     "navigationBarTextStyle": "white"
   },
   "tabBar": {

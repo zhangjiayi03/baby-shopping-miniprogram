@@ -5,7 +5,7 @@
     <view class="avatar-section">
       <view class="avatar">👶</view>
       <view class="user-info">
-        <text class="nickname">{{userInfo.nickname || '宝宝购物记'}}</text>
+        <text class="nickname">{{userInfo.nickname || '萌宝账本'}}</text>
         <text class="desc">已记录 {{totalDays}} 天 · {{totalRecords}} 笔订单</text>
       </view>
     </view>
@@ -105,7 +105,7 @@
   <!-- 版本信息 -->
   <view class="version-info">
     <text>Version {{version}}</text>
-    <text class="copyright">© 2026 宝宝购物记</text>
+    <text class="copyright">© 2026 萌宝账本</text>
   </view>
   
   <!-- 编辑宝宝弹窗 -->
