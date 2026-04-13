@@ -8,6 +8,7 @@ Page({
     pageSize: 20,
     hasMore: true,
     loading: false,
+    isFirstLoad: true, // 标记是否首次加载
     
     // 筛选条件
     filterCategoryIndex: 0,
@@ -52,13 +53,16 @@ Page({
   },
 
   onShow() {
-    // 每次显示页面时刷新数据，确保从其他页面返回时能看到最新数据
-    console.log('📄 首页 onShow');
-    // 延迟执行避免和 onLoad 竞态
-    if (this.data.recordList.length > 0) {
-      this.refreshRecords();
-      this.calculateStats();
+    // 每次显示页面时刷新数据
+    console.log('📄 首页 onShow, isFirstLoad:', this.data.isFirstLoad);
+    // 首次加载时 onLoad 已经调用过了，跳过
+    if (this.data.isFirstLoad) {
+      this.setData({ isFirstLoad: false });
+      return;
     }
+    // 后续每次显示都刷新
+    this.refreshRecords();
+    this.calculateStats();
   },
 
   onPullDownRefresh() {
@@ -132,10 +136,10 @@ Page({
       console.error('加载记录失败:', error);
       this.setData({ recordList: [], hasMore: false });
       wx.showToast({ title: '加载失败', icon: 'none' });
+    } finally {
+      this.setData({ loading: false, isFirstLoad: false });
+      wx.stopPullDownRefresh();
     }
-    
-    this.setData({ loading: false });
-    wx.stopPullDownRefresh();
   },
 
   // 刷新记录
