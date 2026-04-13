@@ -6,9 +6,13 @@ cloud.init({
   env: cloud.DYNAMIC_CURRENT_ENV
 })
 
-// 百度 OCR 配置
-const BAIDU_API_KEY = 'aWb1o2tbEqXuH2TN41iUuhIt'
-const BAIDU_SECRET_KEY = 'TLwVw2OCU5JoQtjS56HI5OcGVgihlfqH'
+// 从环境变量读取配置（安全方式）
+const BAIDU_API_KEY = process.env.BAIDU_API_KEY || ''
+const BAIDU_SECRET_KEY = process.env.BAIDU_SECRET_KEY || ''
+
+if (!BAIDU_API_KEY || !BAIDU_SECRET_KEY) {
+  console.error('⚠️ 警告：百度 API Key 未配置，请设置云函数环境变量')
+}
 
 let cachedToken = null
 let tokenExpire = 0
@@ -204,6 +208,14 @@ function recognizeCategory(productName) {
 
 async function main(event, context) {
   console.log('OCR 云函数被调用，event:', JSON.stringify(event).substring(0, 200))
+
+  // 检查 API Key 配置
+  if (!BAIDU_API_KEY || !BAIDU_SECRET_KEY) {
+    return { 
+      success: false, 
+      error: '百度 API Key 未配置，请在云函数环境变量中设置 BAIDU_API_KEY 和 BAIDU_SECRET_KEY' 
+    }
+  }
 
   try {
     const { image, imgUrl } = event

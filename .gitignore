@@ -1,0 +1,23 @@
+# 依赖
+node_modules/
+
+# 云函数配置（含敏感信息）
+miniprogram/cloudfunctions/*/config.js
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 日志
+*.log
+npm-debug.log*
+
+# 临时文件
+*.tmp
+*.temp
