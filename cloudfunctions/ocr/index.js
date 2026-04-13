@@ -103,7 +103,7 @@ function parseOrder(texts) {
   let price = 0
   let quantity = 1
 
-  const excludeKeywords = ['售后', '服务', '完成', '感谢', '支持', '订单', 
+  const excludeKeywords = ['售后', '服务', '完成', '感谢', '支持', '订单',
                            '时间', '地址', '电话', '收货', '支付', '配送',
                            '查看', '评价', '申请', '客服', '详情', '更多',
                            '京东物流', '京东快递', '电子面单',
@@ -116,6 +116,18 @@ function parseOrder(texts) {
                            // 排除支付相关
                            '扣款', '自动扣款', '先用后付', '确认收货后再付款',
                            '签收', '快件', '门口', '疑议']
+
+  // 排除明显是支付提示/时间提示的行
+  const isPaymentOrTimeHint = (text) => {
+    // 匹配 "X天X时后自动扣款X元"、"先用后付"、"确认收货后"等
+    if (/\d+天\d+时/.test(text)) return true
+    if (/自动扣款/.test(text)) return true
+    if (/先用后付/.test(text)) return true
+    if (/确认收货后/.test(text)) return true
+    if (/天后自动/.test(text)) return true
+    if (/时后自动/.test(text)) return true
+    return false
+  }
 
   const isAddressOrPhone = (text) => {
     if (/\d{3,4}\*\*\*\d{4}/.test(text)) return true
@@ -146,6 +158,12 @@ function parseOrder(texts) {
       console.log('跳过价格行:', text)
       continue
     }
+
+    // 跳过支付提示/时间提示
+    if (isPaymentOrTimeHint(text)) {
+      console.log('跳过支付提示:', text)
+      continue
+    }
     
     const hasSpec = /(\d+ml|\d+g|\d+片|\d+包|\d+装|婴儿|儿童|宝宝|奶粉|尿不湿|纸尿裤|爽身露|润肤露|马桶垫|产妇|一次性|抗菌|加厚|夹棉|旅行|酒店|月子|湿巾|洗护|沐浴|护肤|爽身粉|护臀|桃子水|口水|辅食|米粉|果泥|奶瓶|喂养|安抚奶嘴|衣服|裤子|鞋|帽|袜|连体衣|套装|棉服|外套|玩具|积木|摇铃|绘本|图书|拼图|疫苗|体温|保健品|钙|维生素|早教|课程|学习|启蒙)/i.test(text)
     const hasBrand = /(贝亲|可心柔|babycare|好孩子|全棉时代|英氏|启初|红色小象|洁丽雅|GRACE|帮宝适|好奇|花王|大王|尤妮佳|露安适|妮飘|宜婴|雀巢|惠氏|美赞臣|爱他美|诺优能|合生元|飞鹤|伊利|君乐宝|完达山|贝因美|澳优|海普诺凯|佳贝艾特|蓝河|绵羊奶|可瑞康|牛栏|喜宝|泓乐|特福芬|康维多|美素佳儿)/i.test(text)
@@ -163,6 +181,11 @@ function parseOrder(texts) {
     for (const text of texts) {
       // 跳过纯价格数字的行
       if (isPriceOnly(text)) {
+        continue
+      }
+
+      // 跳过支付提示/时间提示
+      if (isPaymentOrTimeHint(text)) {
         continue
       }
       
