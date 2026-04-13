@@ -112,10 +112,13 @@
 .btn {
   flex: 1;
   height: 80rpx;
-  line-height: 80rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 30rpx;
   border-radius: 40rpx;
   border: none;
+  padding: 0;
 }
 
 .btn::after {
