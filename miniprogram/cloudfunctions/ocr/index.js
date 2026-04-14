@@ -83,7 +83,6 @@ async function recognizeWithVL(imageBase64, accessToken) {
 
 2. **实付金额**：
    - 只取最终实付金额，不是原价或划线价
-   - 找"实付"、"到手价"、"应付"、"合计"后的数字
 
 3. **购物平台**：
    - 淘宝/天猫 → "taobao"
@@ -97,27 +96,21 @@ async function recognizeWithVL(imageBase64, accessToken) {
 {"productName":"商品名","price":数字,"platform":"平台代码"}`
 
   try {
-    // ERNIE-4.5-Turbo-VL API
+    // 千帆平台 OpenAI 兼容格式
     const res = await axios.post(
-      `https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/image2text/ernie-4.5-turbo-vl?access_token=${accessToken}`,
+      `https://qianfan.baidubce.com/v2/chat/completions?access_token=${accessToken}`,
       {
+        model: 'ernie-4.5-turbo-vl-preview',
         messages: [
           {
             role: 'user',
             content: [
-              {
-                type: 'text',
-                text: prompt
-              },
-              {
-                type: 'image',
-                image: imageBase64
-              }
+              { type: 'text', text: prompt },
+              { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}` } }
             ]
           }
         ],
-        temperature: 0.1,
-        top_p: 0.9
+        temperature: 0.1
       },
       {
         headers: { 'Content-Type': 'application/json' },
@@ -125,9 +118,9 @@ async function recognizeWithVL(imageBase64, accessToken) {
       }
     )
 
-    const content = res.data?.result
+    const content = res.data?.choices?.[0]?.message?.content
     if (!content) {
-      console.log('⚠️ VL 模型返回空结果')
+      console.log('⚠️ VL 返回空结果，响应:', JSON.stringify(res.data))
       return null
     }
 
@@ -146,19 +139,17 @@ async function recognizeWithVL(imageBase64, accessToken) {
       return null
     }
 
-    const extracted = {
-      productName: String(result.productName || '未识别商品').trim(),
+    console.log('✅ VL 识别成功:', result)
+    return {
+      productName: String(result.productName).trim(),
       price: parseFloat(result.price) || 0,
       platform: String(result.platform || 'other')
     }
 
-    console.log('✅ VL 识别成功:', extracted)
-    return extracted
-
   } catch (error) {
     console.error('❌ VL 调用失败:', error.message)
-    if (error.response) {
-      console.error('响应数据:', JSON.stringify(error.response.data))
+    if (error.response?.data) {
+      console.error('错误详情:', JSON.stringify(error.response.data))
     }
     return null
   }
@@ -171,7 +162,7 @@ function recognizeCategory(productName) {
   if (!productName) return 7
   
   const categoryMap = {
-    '2': ['尿布', '纸尿裤', '尿不湿', '湿巾', '洗护', '沐浴', '护肤', '爽身', '护臀', '润肤', '桃子水', '产妇', '一次性', '护理', '清洁', '洗衣', '柔顺', '消毒', '浴盆', '浴巾', '毛巾', '口水巾', '纸巾', '抽纸', '棉柔巾', '洗脸巾'],
+    '2': ['尿布', '纸尿裤', '尿不湿', '湿巾', '洗护', '沐浴', '护肤', '爽身', '护臀', '润肤', '桃子水', '产妇', '一次性', '护理', '清洁', '洗衣', '柔顺', '消毒', '浴盆', '浴巾', '毛巾', '口水巾', '纸巾', '抽纸', '棉柔巾', '洗脸巾', '隔尿垫'],
     '1': ['奶粉', '奶瓶', '辅食', '米粉', '果泥', '营养', '喂养', '母乳', '安抚奶嘴', '吸管杯', '学饮杯', '围嘴', '饭兜', '餐椅', '碗勺', '餐具'],
     '3': ['衣服', '裤子', '鞋', '帽', '袜', '连体衣', '套装', '棉服', '外套', '内衣', '睡袋', '抱被', '学步鞋'],
     '4': ['玩具', '积木', '摇铃', '绘本', '拼图', '音乐', '游戏', '玩偶', '爬行', '健身架', '帐篷'],
@@ -219,14 +210,14 @@ async function fallbackOCR(imageBase64, accessToken) {
 
     if (texts.length === 0) return null
 
-    // 简单规则提取
+    // 简单规则提取商品名
     let productName = ''
-    const excludeKeywords = ['售后', '服务', '完成', '感谢', '订单', '时间', '地址', '电话', '收货', '支付', '配送', '客服', '京东', '淘宝', '天猫', '拼多多', '抖音', '店铺']
+    const excludeKeywords = ['售后', '服务', '完成', '感谢', '订单', '时间', '地址', '电话', '收货', '支付', '配送', '客服', '京东', '淘宝', '天猫', '拼多多', '抖音', '店铺', '签收', '取件']
     
     for (const text of texts) {
       if (excludeKeywords.some(kw => text.includes(kw))) continue
       if (text.length < 3 || text.length > 100) continue
-      if (/^[\d.￥¥:：]+$/.test(text)) continue
+      if (/^[\d.￥¥:：\s]+$/.test(text)) continue
       
       productName = text.trim()
       break
@@ -250,6 +241,7 @@ async function fallbackOCR(imageBase64, accessToken) {
     else if (allText.includes('拼多多')) platform = 'pdd'
     else if (allText.includes('抖音')) platform = 'douyin'
 
+    console.log('📋 OCR 结果:', { productName, price, platform })
     return {
       productName: productName || '未识别商品',
       price: price,
@@ -300,10 +292,12 @@ async function main(event, context) {
     const accessToken = await getBaiduAccessToken()
 
     // 第一步：尝试 VL 多模态识别
+    console.log('🔄 开始 VL 多模态识别...')
     let result = await recognizeWithVL(imageBase64, accessToken)
 
     // 第二步：VL 失败则使用 OCR 后备
     if (!result) {
+      console.log('⚠️ VL 失败，切换 OCR 后备方案...')
       result = await fallbackOCR(imageBase64, accessToken)
     }
 
@@ -346,7 +340,7 @@ async function main(event, context) {
     }
     resultCache.set(cacheKey, response)
 
-    console.log('✅ 返回结果:', JSON.stringify(response))
+    console.log('✅ 最终返回结果:', JSON.stringify(response))
     return response
 
   } catch (error) {
