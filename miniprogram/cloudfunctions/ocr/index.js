@@ -9,24 +9,32 @@ cloud.init({
 // 从环境变量读取配置
 const BAIDU_API_KEY = process.env.BAIDU_API_KEY || ''
 const BAIDU_SECRET_KEY = process.env.BAIDU_SECRET_KEY || ''
+// 千帆平台专用密钥（VL 多模态模型需要）
+const QIANFAN_API_KEY = process.env.QIANFAN_API_KEY || BAIDU_API_KEY
+const QIANFAN_SECRET_KEY = process.env.QIANFAN_SECRET_KEY || BAIDU_SECRET_KEY
 
 if (!BAIDU_API_KEY || !BAIDU_SECRET_KEY) {
   console.error('⚠️ 警告：百度 API Key 未配置，请设置云函数环境变量')
 }
+if (!QIANFAN_API_KEY || !QIANFAN_SECRET_KEY) {
+  console.log('💡 提示：千帆 API Key 未单独配置，将使用百度通用密钥（可能不支持 VL 模型）')
+}
 
-let cachedToken = null
-let tokenExpire = 0
+let cachedBaiduToken = null
+let baiduTokenExpire = 0
+let cachedQianfanToken = null
+let qianfanTokenExpire = 0
 
 // 结果缓存
 const resultCache = new Map()
 const MAX_CACHE_SIZE = 50
 
 /**
- * 获取百度 Access Token
+ * 获取百度 Access Token（用于 OCR）
  */
 async function getBaiduAccessToken() {
-  if (cachedToken && Date.now() < tokenExpire) {
-    return cachedToken
+  if (cachedBaiduToken && Date.now() < baiduTokenExpire) {
+    return cachedBaiduToken
   }
   
   console.log('🔑 获取百度 Access Token...')
@@ -46,13 +54,47 @@ async function getBaiduAccessToken() {
   )
 
   if (res.data.access_token) {
-    cachedToken = res.data.access_token
-    tokenExpire = Date.now() + (res.data.expires_in - 3600) * 1000
-    console.log('✅ 获取 Access Token 成功')
-    return cachedToken
+    cachedBaiduToken = res.data.access_token
+    baiduTokenExpire = Date.now() + (res.data.expires_in - 3600) * 1000
+    console.log('✅ 获取百度 Access Token 成功')
+    return cachedBaiduToken
   }
   
   throw new Error(res.data.error_description || '获取 Access Token 失败')
+}
+
+/**
+ * 获取千帆平台 Access Token（用于 VL 多模态模型）
+ */
+async function getQianfanAccessToken() {
+  if (cachedQianfanToken && Date.now() < qianfanTokenExpire) {
+    return cachedQianfanToken
+  }
+  
+  console.log('🔑 获取千帆 Access Token...')
+  
+  const params = new URLSearchParams()
+  params.append('grant_type', 'client_credentials')
+  params.append('client_id', QIANFAN_API_KEY)
+  params.append('client_secret', QIANFAN_SECRET_KEY)
+
+  const res = await axios.post(
+    'https://aip.baidubce.com/oauth/2.0/token',
+    params.toString(),
+    {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      timeout: 10000
+    }
+  )
+
+  if (res.data.access_token) {
+    cachedQianfanToken = res.data.access_token
+    qianfanTokenExpire = Date.now() + (res.data.expires_in - 3600) * 1000
+    console.log('✅ 获取千帆 Access Token 成功')
+    return cachedQianfanToken
+  }
+  
+  throw new Error(res.data.error_description || '获取千帆 Access Token 失败')
 }
 
 /**
@@ -71,7 +113,16 @@ async function downloadImageFromCloudStorage(imgUrl) {
 /**
  * 使用 ERNIE-4.5-Turbo-VL 多模态模型识别订单截图
  */
-async function recognizeWithVL(imageBase64, accessToken) {
+async function recognizeWithVL(imageBase64) {
+  // 获取千帆专用 Token
+  let accessToken
+  try {
+    accessToken = await getQianfanAccessToken()
+  } catch (err) {
+    console.error('❌ 获取千帆 Token 失败:', err.message)
+    return null
+  }
+  
   console.log('🤖 调用 ERNIE-4.5-Turbo-VL 识别...')
   
   const prompt = `你是一个母婴购物账本助手。请分析这张订单截图，提取以下信息：
@@ -293,7 +344,7 @@ async function main(event, context) {
 
     // 第一步：尝试 VL 多模态识别
     console.log('🔄 开始 VL 多模态识别...')
-    let result = await recognizeWithVL(imageBase64, accessToken)
+    let result = await recognizeWithVL(imageBase64)
 
     // 第二步：VL 失败则使用 OCR 后备
     if (!result) {

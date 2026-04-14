@@ -1,7 +1,7 @@
 {
   "name": "ocr",
-  "version": "3.0.1",
-  "description": "订单截图识别云函数 - ERNIE-4.5-Turbo-VL 多模态模型版",
+  "version": "3.0.2",
+  "description": "订单截图识别云函数 - ERNIE-4.5-Turbo-VL 多模态模型版（支持独立千帆密钥）",
   "main": "index.js",
   "dependencies": {
     "wx-server-sdk": "latest",
