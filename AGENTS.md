@@ -210,3 +210,29 @@ The goal: Be helpful without being annoying. Check in a few times a day, do usef
 ## Make It Yours
 
 This is a starting point. Add your own conventions, style, and rules as you figure out what works.
+
+---
+
+## 📋 小程序开发规范
+
+**WXML 限制**：
+- ❌ 不支持直接调用 JS 方法：`{{getCategoryName(item.categoryId)}}`
+- ✅ 使用 WXS 模块：`{{utils.getCategoryName()}}`
+- ❌ `<text>` 组件不支持 `padding`
+- ✅ 改用 `<view>` + flexbox 布局
+
+**生命周期**：
+- `onLoad`：只在此加载数据（避免重复）
+- `onShow`：仅当已有数据时刷新
+- 避免两者同时触发导致竞态条件
+
+**OCR 商品识别**：
+- 排除关键词：扣款、自动扣款、先用后付、支付、物流
+- 优先品牌/规格关键词
+- 使用智能评分机制
+
+**Git 推送**：
+- 偶发 504 错误需重试
+- 大文件建议分批次推送
+
+---

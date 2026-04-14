@@ -25,8 +25,8 @@
       "outputPath": ""
     }
   },
-  "appid": "touristappid",
-  "projectname": "baby-shopping",
+  "appid": "YOUR_APPID_HERE",
+  "projectname": "萌宝账本",
   "libVersion": "3.15.1",
   "cloudfunctionTemplateRoot": "./cloudfunctionTemplate/",
   "condition": {},
