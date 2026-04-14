@@ -1,4 +1,4 @@
-// 云函数入口文件 - 百度 OCR 识别（最终版 - 价格提取修复）
+// 云函数入口文件 - 百度 OCR 识别 + 文心一言后处理（优化版）
 const cloud = require('wx-server-sdk')
 const axios = require('axios')
 
@@ -16,6 +16,10 @@ if (!BAIDU_API_KEY || !BAIDU_SECRET_KEY) {
 
 let cachedToken = null
 let tokenExpire = 0
+
+// LLM 结果缓存（避免重复调用）
+const llmCache = new Map()
+const MAX_CACHE_SIZE = 100
 
 async function getBaiduAccessToken() {
   if (cachedToken && Date.now() < tokenExpire) {
@@ -71,6 +75,111 @@ async function downloadImageFromCloudStorage(imgUrl) {
     return result.fileContent.toString('base64')
   }
   throw new Error('下载文件内容为空')
+}
+
+/**
+ * 使用文心一言从 OCR 文本中提取商品信息
+ * @param {string[]} texts - OCR 识别的文字行
+ * @param {string} accessToken - 百度 Access Token
+ * @returns {Promise<{productName: string, price: number, platform: string} | null>}
+ */
+async function extractWithLLM(texts, accessToken) {
+  // 生成缓存 key（取前 50 字符 + 行数）
+  const cacheKey = texts.slice(0, 3).join('').substring(0, 50) + '|' + texts.length
+  if (llmCache.has(cacheKey)) {
+    console.log('✅ 使用缓存结果')
+    return llmCache.get(cacheKey)
+  }
+
+  const prompt = `你是一个母婴购物账本助手。请从以下订单截图文字中准确提取：
+
+1. **商品名称**：
+   - 必须是真实的商品名，包含品牌和产品名
+   - 排除干扰信息：扣款、自动扣款、先用后付、支付、物流、售后服务、客服、评价、店铺名、平台名、广告语
+   - 保留规格信息（如：240ml、3段、超薄款）
+
+2. **实付金额**：
+   - 找"实付"、"到手价"、"合计"、"应付"后面的金额
+   - 不要取原价、划线价
+
+3. **购物平台**：
+   - 淘宝/天猫 → "taobao"
+   - 京东 → "jd"
+   - 拼多多 → "pdd"
+   - 抖音 → "douyin"
+   - 美团 → "meituan"
+   - 其他 → "other"
+
+文字内容：
+${texts.join('\n')}
+
+请严格按以下 JSON 格式返回，不要有多余文字：
+{"productName": "商品名", "price": 数字, "platform": "平台代码"}
+
+如果无法识别，返回：
+{"productName": "未识别商品", "price": 0, "platform": "other"}`
+
+  try {
+    console.log('🤖 调用文心一言提取商品信息...')
+    
+    // 调用文心一言 ERNIE-Bot-4 API
+    const res = await axios.post(
+      `https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/completions_pro?access_token=${accessToken}`,
+      {
+        messages: [
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.1,  // 低温度，更稳定
+        top_p: 0.9
+      },
+      {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 15000
+      }
+    )
+
+    const content = res.data?.result
+    if (!content) {
+      console.log('⚠️ 文心一言返回空结果')
+      return null
+    }
+
+    console.log('📝 文心一言原始返回:', content.substring(0, 200))
+
+    // 解析 JSON
+    const jsonMatch = content.match(/\{[^{}]*\}/)
+    if (!jsonMatch) {
+      console.log('⚠️ 无法从返回中解析 JSON')
+      return null
+    }
+
+    const result = JSON.parse(jsonMatch[0])
+    
+    // 验证结果
+    if (!result.productName || result.productName === '未识别商品') {
+      return null
+    }
+
+    const extracted = {
+      productName: String(result.productName || '未识别商品').trim(),
+      price: parseFloat(result.price) || 0,
+      platform: String(result.platform || 'other')
+    }
+
+    // 缓存结果
+    if (llmCache.size > MAX_CACHE_SIZE) {
+      const firstKey = llmCache.keys().next().value
+      llmCache.delete(firstKey)
+    }
+    llmCache.set(cacheKey, extracted)
+
+    console.log('✅ LLM 提取成功:', extracted)
+    return extracted
+
+  } catch (error) {
+    console.error('❌ 文心一言调用失败:', error.message)
+    return null
+  }
 }
 
 function parseOrder(texts) {
@@ -306,41 +415,59 @@ async function main(event, context) {
       }
     }
 
-    // 判断平台 - 根据订单特征
-    let platform = 'other'  // 默认未知
-    const allText = texts.join(' ')
-    
-    // 检查明确的平台关键词
-    if (allText.includes('淘宝') || allText.includes('天猫')) {
-      platform = 'taobao'
-    } else if (allText.includes('京东') || allText.includes('JD') || allText.includes('京')) {
-      platform = 'jd'
-    } else if (allText.includes('拼多多') || allText.includes('拼')) {
-      platform = 'pdd'
-    } else if (allText.includes('抖音')) {
-      platform = 'douyin'
-    } else if (allText.includes('美团') || allText.includes('美团外卖')) {
-      platform = 'meituan'
+    // ========== 第一步：尝试用 LLM 提取商品信息 ==========
+    let llmResult = null
+    try {
+      llmResult = await extractWithLLM(texts, accessToken)
+    } catch (llmErr) {
+      console.log('⚠️ LLM 提取失败，将使用规则解析:', llmErr.message)
     }
-    // 如果没有明确关键词，保持 'other'，让用户手动选择
-    
-    // 解析订单
-    const parsedResult = parseOrder(texts)
-    
-    // 识别分类
-    const categoryId = recognizeCategory(parsedResult.productName || '')
-    console.log('📊 最终结果 - 平台:', platform, '分类 ID:', categoryId, '商品名:', parsedResult.productName)
+
+    let productName, price, platform, categoryId
+
+    if (llmResult && llmResult.productName !== '未识别商品') {
+      // LLM 提取成功
+      productName = llmResult.productName
+      price = llmResult.price
+      platform = llmResult.platform
+      categoryId = recognizeCategory(productName)
+      console.log('✅ 使用 LLM 提取结果:', { productName, price, platform, categoryId })
+    } else {
+      // 回退到规则解析
+      console.log('📋 LLM 未成功，使用规则解析...')
+      
+      // 判断平台 - 根据订单特征
+      const allText = texts.join(' ')
+      platform = 'other'
+      if (allText.includes('淘宝') || allText.includes('天猫')) {
+        platform = 'taobao'
+      } else if (allText.includes('京东') || allText.includes('JD') || allText.includes('京')) {
+        platform = 'jd'
+      } else if (allText.includes('拼多多') || allText.includes('拼')) {
+        platform = 'pdd'
+      } else if (allText.includes('抖音')) {
+        platform = 'douyin'
+      } else if (allText.includes('美团') || allText.includes('美团外卖')) {
+        platform = 'meituan'
+      }
+
+      const parsedResult = parseOrder(texts)
+      productName = parsedResult.productName || '未识别商品'
+      price = parsedResult.price || 0
+      categoryId = recognizeCategory(productName)
+      console.log('📊 规则解析结果 - 平台:', platform, '分类 ID:', categoryId, '商品名:', productName)
+    }
 
     const now = new Date();
     const response = {
       success: true,
       data: {
-        productName: parsedResult.productName || '未识别商品',
-        price: parsedResult.price || 0,
-        quantity: parsedResult.quantity || 1,
+        productName: productName,
+        price: price,
+        quantity: 1,
         platform: platform,
         categoryId: categoryId,
-        orderTime: now.toISOString().split('T')[0],  // 添加订单日期
+        orderTime: now.toISOString().split('T')[0],
         rawTexts: texts.slice(0, 10)
       }
     }
@@ -357,3 +484,4 @@ async function main(event, context) {
 exports.main = main
 exports.recognizeCategory = recognizeCategory
 exports.parseOrder = parseOrder
+exports.extractWithLLM = extractWithLLM
