@@ -1,7 +1,7 @@
 {
   "name": "ocr",
-  "version": "2.0.0",
-  "description": "订单截图 OCR 识别云函数 - 百度 OCR + 文心一言后处理优化版",
+  "version": "3.0.0",
+  "description": "订单截图识别云函数 - ERNIE-4.5-Turbo-VL 多模态模型版",
   "main": "index.js",
   "dependencies": {
     "wx-server-sdk": "latest",
