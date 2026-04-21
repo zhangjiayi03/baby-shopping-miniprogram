@@ -1,9 +1,9 @@
-// app.js
+const config = require('./config')
+
 App({
   globalData: {
     userInfo: null,
-    cloudEnv: 'cloud1-8ggfnnl90cbdd81e',
-    // 分类配置（全局共享）
+    cloudEnv: config.cloudEnv,
     categories: [
       { id: 0, name: '全部分类' },
       { id: 1, name: '喂养' },
@@ -14,7 +14,6 @@ App({
       { id: 6, name: '教育' },
       { id: 7, name: '其他' }
     ],
-    // 平台配置（全局共享）
     platforms: [
       { id: 0, name: '全部平台' },
       { id: 'taobao', name: '淘宝' },
@@ -27,12 +26,13 @@ App({
   },
 
   onLaunch() {
-    // 初始化云开发环境
-    if (wx.cloud) {
-      wx.cloud.init({
-        env: this.globalData.cloudEnv,
-        traceUser: true
-      });
+    if (!wx.cloud) {
+      console.error('请使用 2.25.3 或以上的基础库以使用云能力');
+      return;
     }
+    wx.cloud.init({
+      env: this.globalData.cloudEnv,
+      traceUser: true
+    });
   }
 });

@@ -13,13 +13,13 @@ Page({
     totalDays: 0,
     totalRecords: 0,
     totalSpent: 0,
+    totalSpentDisplay: '0.00',
+    spentThisMonth: 0,
+    spentThisMonthDisplay: '0.00',
     
-    // 宝宝列表
     babies: [],
     
-    // 预算信息
     monthlyBudget: 2000,
-    spentThisMonth: 0,
     budgetRemaining: 0,
     budgetPercent: 0,
     budgetTip: '',
@@ -105,37 +105,36 @@ Page({
   // 加载统计数据
   async loadStats() {
     try {
-      const statsRes = await wx.cloud.callFunction({
-        name: 'stats',
-        data: { action: 'getStats' }
-      });
-      
+      const [statsRes, totalRes] = await Promise.all([
+        wx.cloud.callFunction({
+          name: 'stats',
+          data: { action: 'getStats' }
+        }),
+        wx.cloud.callFunction({
+          name: 'stats',
+          data: { action: 'getTotalStats' }
+        })
+      ]);
+
       if (statsRes?.result?.success) {
         const stats = statsRes.result.data;
-        
-        const allRecordsRes = await wx.cloud.callFunction({
-          name: 'record',
-          data: { action: 'list', data: { page: 1, pageSize: 1000 } }
+        this.setData({
+          spentThisMonth: stats.thisMonth.spent,
+          spentThisMonthDisplay: stats.thisMonth.spent.toFixed(2)
         });
-        
-        if (allRecordsRes?.result?.success) {
-          const records = allRecordsRes.result.data.list || [];
-          const totalRecords = records.length;
-          const totalSpent = records.reduce((sum, r) => 
-            sum + parseFloat(r.price || 0) * (parseInt(r.quantity) || 1), 0);
-          
-          const uniqueDays = [...new Set(records.map(r => r.orderTime?.split('T')[0]))];
-          
-          this.setData({
-            totalDays: uniqueDays.length,
-            totalRecords,
-            totalSpent: parseFloat(totalSpent.toFixed(2)),
-            spentThisMonth: stats.thisMonth.spent.toFixed(2)
-          });
-          
-          this.calculateBudget();
-        }
       }
+
+      if (totalRes?.result?.success) {
+        const total = totalRes.result.data;
+        this.setData({
+          totalDays: total.totalDays,
+          totalRecords: total.totalRecords,
+          totalSpent: total.totalSpent,
+          totalSpentDisplay: total.totalSpent.toFixed(2)
+        });
+      }
+
+      this.calculateBudget();
     } catch (error) {
       console.error('加载统计失败:', error);
     }
@@ -322,6 +321,10 @@ Page({
     this.setData({ showBudgetDialog: false });
   },
 
+  onBudgetInput(e) {
+    this.setData({ 'budgetForm.amount': e.detail.value });
+  },
+
   saveBudget() {
     const amount = parseInt(this.data.budgetForm.amount);
     
@@ -347,10 +350,14 @@ Page({
   clearCache() {
     wx.showModal({
       title: '确认清除',
-      content: '确定要清除缓存吗？',
+      content: '确定要清除缓存吗？（月度预算设置不会被清除）',
       success: (res) => {
         if (res.confirm) {
+          const budget = wx.getStorageSync('monthlyBudget');
           wx.clearStorageSync();
+          if (budget) {
+            wx.setStorageSync('monthlyBudget', budget);
+          }
           wx.showToast({ title: '清除成功', icon: 'success' });
           this.loadSettings();
         }

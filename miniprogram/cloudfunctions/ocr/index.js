@@ -25,10 +25,6 @@ let baiduTokenExpire = 0
 let cachedQianfanToken = null
 let qianfanTokenExpire = 0
 
-// 结果缓存
-const resultCache = new Map()
-const MAX_CACHE_SIZE = 50
-
 /**
  * 获取百度 Access Token（用于 OCR）
  */
@@ -332,13 +328,6 @@ async function main(event, context) {
       return { success: false, error: '请提供图片数据 (image 或 imgUrl)' }
     }
 
-    // 检查缓存
-    const cacheKey = imageBase64.substring(0, 100)
-    if (resultCache.has(cacheKey)) {
-      console.log('✅ 使用缓存结果')
-      return resultCache.get(cacheKey)
-    }
-
     // 获取 Access Token
     const accessToken = await getBaiduAccessToken()
 
@@ -383,13 +372,6 @@ async function main(event, context) {
         rawTexts: result.rawTexts || []
       }
     }
-
-    // 缓存结果
-    if (resultCache.size > MAX_CACHE_SIZE) {
-      const firstKey = resultCache.keys().next().value
-      resultCache.delete(firstKey)
-    }
-    resultCache.set(cacheKey, response)
 
     console.log('✅ 最终返回结果:', JSON.stringify(response))
     return response

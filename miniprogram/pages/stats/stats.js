@@ -32,12 +32,19 @@ Page({
     platformStats: [],
     
     // 分类颜色
-    categoryColors: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE'],
-    categoryNames: ['其他', '喂养', '洗护', '服装', '玩具', '医疗', '教育'],
-    platformNames: { 'taobao': '淘宝', 'jd': '京东', 'pdd': '拼多多', 'douyin': '抖音', 'meituan': '美团', 'other': '其他' }
+    categoryColors: { 1: '#FF6B6B', 2: '#4ECDC4', 3: '#45B7D1', 4: '#FFA07A', 5: '#98D8C8', 6: '#F7DC6F', 7: '#BB8FCE' },
+    categoryMap: {},
+    platformMap: {}
   },
 
   onLoad() {
+    const categoryMap = {};
+    app.globalData.categories.forEach(c => { categoryMap[c.id] = c.name; });
+    const platformMap = {};
+    app.globalData.platforms.forEach(p => { platformMap[p.id] = p.name; });
+    const budget = wx.getStorageSync('monthlyBudget') || 2000;
+    this.setData({ categoryMap, platformMap, monthlyBudget: budget });
+
     this.loadBabies();
   },
 
@@ -95,19 +102,23 @@ Page({
         // 格式化数字，小程序模板不支持 .toFixed()
         const stats = {
           today: {
-            spent: rawStats.today.spent.toFixed(2),
+            spent: rawStats.today.spent,
+            spentDisplay: rawStats.today.spent.toFixed(2),
             count: rawStats.today.count
           },
           yesterday: {
-            spent: rawStats.yesterday.spent.toFixed(2),
+            spent: rawStats.yesterday.spent,
+            spentDisplay: rawStats.yesterday.spent.toFixed(2),
             count: rawStats.yesterday.count
           },
           thisMonth: {
-            spent: rawStats.thisMonth.spent.toFixed(2),
+            spent: rawStats.thisMonth.spent,
+            spentDisplay: rawStats.thisMonth.spent.toFixed(2),
             count: rawStats.thisMonth.count
           },
           lastMonth: {
-            spent: rawStats.lastMonth.spent.toFixed(2),
+            spent: rawStats.lastMonth.spent,
+            spentDisplay: rawStats.lastMonth.spent.toFixed(2),
             count: rawStats.lastMonth.count
           },
           changePercent: rawStats.changePercent
@@ -138,43 +149,52 @@ Page({
   async loadMonthlyTrend() {
     const { selectedBabyId } = this.data;
     const now = new Date();
-    const trend = [];
+    const months = [];
     
     for (let i = 5; i >= 0; i--) {
       const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const year = date.getFullYear();
-      const month = date.getMonth() + 1;
-      
-      try {
-        const res = await wx.cloud.callFunction({
-          name: 'stats',
-          data: { action: 'getMonthlyStats', year, month, babyId: selectedBabyId }
-        });
-        
-        if (res.result?.success) {
-          trend.push({
-            month: `${month}月`,
-            amount: res.result.data.total.toFixed(0),
-            rawAmount: res.result.data.total,
-            height: 0
-          });
-        }
-      } catch (error) {
-        trend.push({ month: `${month}月`, amount: '0', rawAmount: 0, height: 0 });
-      }
+      months.push({
+        year: date.getFullYear(),
+        month: date.getMonth() + 1,
+        label: `${date.getMonth() + 1}月`
+      });
     }
-    
-    const maxAmount = Math.max(...trend.map(t => t.rawAmount), 1);
-    trend.forEach(item => {
-      item.height = Math.max((item.rawAmount / maxAmount) * 80, 10);
-    });
-    
-    this.setData({ monthlyTrend: trend });
+
+    try {
+      const promises = months.map(m =>
+        wx.cloud.callFunction({
+          name: 'stats',
+          data: { action: 'getMonthlyStats', year: m.year, month: m.month, babyId: selectedBabyId }
+        }).then(res => {
+          if (res.result?.success) {
+            return {
+              month: m.label,
+              amount: res.result.data.total.toFixed(0),
+              rawAmount: res.result.data.total,
+              height: 0
+            };
+          }
+          return { month: m.label, amount: '0', rawAmount: 0, height: 0 };
+        }).catch(() => ({
+          month: m.label, amount: '0', rawAmount: 0, height: 0
+        }))
+      );
+
+      const trend = await Promise.all(promises);
+      const maxAmount = Math.max(...trend.map(t => t.rawAmount), 1);
+      trend.forEach(item => {
+        item.height = Math.max((item.rawAmount / maxAmount) * 80, 10);
+      });
+
+      this.setData({ monthlyTrend: trend });
+    } catch (error) {
+      console.error('加载月度趋势失败:', error);
+    }
   },
 
   // 加载分类统计
   async loadCategoryStats() {
-    const { selectedBabyId, categoryNames, categoryColors } = this.data;
+    const { selectedBabyId, categoryMap, categoryColors } = this.data;
     
     try {
       const res = await wx.cloud.callFunction({
@@ -185,8 +205,8 @@ Page({
       if (res.result?.success) {
         const categoryStats = res.result.data.categories.map(cat => ({
           ...cat,
-          name: categoryNames[cat.categoryId] || '其他',
-          color: categoryColors[cat.categoryId - 1] || '#999'
+          name: categoryMap[cat.categoryId] || '其他',
+          color: categoryColors[cat.categoryId] || '#999'
         })).sort((a, b) => b.amount - a.amount);
         
         this.setData({ categoryStats });
@@ -196,9 +216,8 @@ Page({
     }
   },
 
-  // 加载平台统计
   async loadPlatformStats() {
-    const { selectedBabyId, platformNames } = this.data;
+    const { selectedBabyId, platformMap } = this.data;
     
     try {
       const res = await wx.cloud.callFunction({
@@ -209,7 +228,7 @@ Page({
       if (res.result?.success) {
         const platformStats = res.result.data.platforms.map(p => ({
           ...p,
-          name: platformNames[p.platform] || p.platform
+          name: platformMap[p.platform] || p.platform
         })).sort((a, b) => b.amount - a.amount);
         
         this.setData({ platformStats });

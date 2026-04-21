@@ -15,11 +15,11 @@ exports.main = async (event, context) => {
       case 'list':
         return await listBabies(openid);
       case 'get':
-        return await getBaby(id);
+        return await getBaby(openid, id);
       case 'create':
         return await createBaby(openid, data);
       case 'update':
-        return await updateBaby(id, data);
+        return await updateBaby(openid, id, data);
       case 'delete':
         return await deleteBaby(openid, id);
       case 'getDefault':
@@ -46,9 +46,15 @@ async function listBabies(openid) {
   };
 }
 
-// 获取单个宝宝
-async function getBaby(id) {
+// 获取单个宝宝（校验权限）
+async function getBaby(openid, id) {
   const res = await db.collection('babies').doc(id).get();
+  if (!res.data) {
+    return { success: false, message: '宝宝信息不存在' };
+  }
+  if (res.data._openid !== openid) {
+    return { success: false, message: '无权访问该宝宝信息' };
+  }
   return {
     success: true,
     data: res.data
@@ -80,23 +86,39 @@ async function createBaby(openid, data) {
   };
 }
 
-// 更新宝宝
-async function updateBaby(id, data) {
-  const updateData = {
-    ...data,
-    updateTime: new Date().toISOString()
-  };
-  delete updateData._id;
-  delete updateData._openid;
+// 更新宝宝（校验权限）
+async function updateBaby(openid, id, data) {
+  const existing = await db.collection('babies').doc(id).get();
+  if (!existing.data) {
+    return { success: false, message: '宝宝信息不存在' };
+  }
+  if (existing.data._openid !== openid) {
+    return { success: false, message: '无权修改该宝宝信息' };
+  }
+
+  const allowedFields = ['nickname', 'birthDate', 'gender', 'avatar'];
+  const updateData = { updateTime: new Date().toISOString() };
+
+  for (const field of allowedFields) {
+    if (data[field] !== undefined) {
+      updateData[field] = data[field];
+    }
+  }
 
   await db.collection('babies').doc(id).update({ data: updateData });
-
   return { success: true, message: '更新成功' };
 }
 
 // 删除宝宝
 async function deleteBaby(openid, id) {
-  // 检查是否有订单关联
+  const existing = await db.collection('babies').doc(id).get();
+  if (!existing.data) {
+    return { success: false, message: '宝宝信息不存在' };
+  }
+  if (existing.data._openid !== openid) {
+    return { success: false, message: '无权删除该宝宝信息' };
+  }
+
   const recordsRes = await db.collection('records')
     .where({
       _openid: openid,

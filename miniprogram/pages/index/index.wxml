@@ -76,7 +76,7 @@
         </view>
         
         <view class="card-right">
-          <view class="price">¥{{item.price}}</view>
+          <view class="price">¥{{item.priceDisplay}}</view>
           <view class="quantity">x{{item.quantity}}</view>
         </view>
       </view>

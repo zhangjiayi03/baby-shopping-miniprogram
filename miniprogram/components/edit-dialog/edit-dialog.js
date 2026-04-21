@@ -27,32 +27,28 @@ Component({
       platformIndex: 0,
       orderTime: ''
     },
-    categories: [
-      { id: 1, name: '喂养' },
-      { id: 2, name: '洗护' },
-      { id: 3, name: '服装' },
-      { id: 4, name: '玩具' },
-      { id: 5, name: '医疗' },
-      { id: 6, name: '教育' },
-      { id: 7, name: '其他' }
-    ],
-    platforms: [
-      { id: 'taobao', name: '淘宝' },
-      { id: 'jd', name: '京东' },
-      { id: 'pdd', name: '拼多多' },
-      { id: 'douyin', name: '抖音' },
-      { id: 'meituan', name: '美团' },
-      { id: 'other', name: '其他' }
-    ]
+    categories: [],
+    platforms: []
+  },
+
+  lifetimes: {
+    attached() {
+      const app = getApp();
+      this.setData({
+        categories: app.globalData.categories.filter(c => c.id !== 0),
+        platforms: app.globalData.platforms.filter(p => p.id !== 0)
+      });
+    }
   },
 
   observers: {
     'initialData': function(data) {
-      if (data && Object.keys(data).length > 0) {
+      if (data && Object.keys(data).length > 0 && this.data._dialogVisible) {
         this.initFormData(data);
       }
     },
     'visible': function(visible) {
+      this.data._dialogVisible = visible;
       if (visible && this.properties.initialData) {
         this.initFormData(this.properties.initialData);
       }

@@ -15,7 +15,7 @@
     </view>
     
     <view class="progress-bar">
-      <view class="progress-fill" style="width: {{percentage}}%"></view>
+      <view class="progress-fill" style="width: {{progressWidth}}%"></view>
     </view>
     
     <view class="budget-remaining">

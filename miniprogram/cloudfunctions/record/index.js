@@ -17,13 +17,15 @@ exports.main = async (event, context) => {
       case 'batchCreate':
         return await batchCreateRecords(openid, data);
       case 'get':
-        return await getRecord(id);
+        return await getRecord(openid, id);
       case 'update':
         return await updateRecord(openid, id, data);
       case 'batchUpdateBaby':
         return await batchUpdateBaby(openid, id, data);
       case 'delete':
-        return await deleteRecord(id);
+        return await deleteRecord(openid, id);
+      case 'batchCount':
+        return await batchCount(openid, data);
       case 'list':
         return await listRecords(openid, data);
       default:
@@ -62,7 +64,7 @@ async function createRecord(openid, data) {
     productName: data.productName.trim(),
     price: price,
     quantity: quantity,
-    unitPrice: (price / quantity).toFixed(2),
+    unitPrice: parseFloat((price / quantity).toFixed(2)),
     categoryId: categoryId,
     platform: platform,
     babyId: data.babyId || '',
@@ -102,7 +104,7 @@ async function batchCreateRecords(openid, records) {
       productName: data.productName.trim(),
       price: price,
       quantity: quantity,
-      unitPrice: quantity > 0 ? (price / quantity).toFixed(2) : '0',
+      unitPrice: quantity > 0 ? parseFloat((price / quantity).toFixed(2)) : 0,
       categoryId: parseInt(data.categoryId) || 7,
       platform: data.platform || 'other',
       babyId: data.babyId || '',
@@ -132,28 +134,42 @@ async function batchCreateRecords(openid, records) {
   };
 }
 
-// 获取记录详情
-async function getRecord(id) {
+// 获取记录详情（校验权限）
+async function getRecord(openid, id) {
   const res = await db.collection('records').doc(id).get();
   if (!res.data) {
     return { success: false, message: '记录不存在' };
   }
+  if (res.data._openid !== openid) {
+    return { success: false, message: '无权访问该记录' };
+  }
   return { success: true, data: res.data };
 }
 
-// 更新记录
+// 更新记录（校验权限）
 async function updateRecord(openid, id, data) {
-  const updateData = {
-    ...data,
-    updateTime: new Date().toISOString()
-  };
-  delete updateData._id;
-  delete updateData._openid;
+  const existing = await db.collection('records').doc(id).get();
+  if (!existing.data) {
+    return { success: false, message: '记录不存在' };
+  }
+  if (existing.data._openid !== openid) {
+    return { success: false, message: '无权修改该记录' };
+  }
 
-  if (data.price && data.quantity) {
-    const quantity = parseInt(data.quantity);
-    if (quantity > 0) {
-      updateData.unitPrice = (parseFloat(data.price) / quantity).toFixed(2);
+  const allowedFields = ['productName', 'price', 'quantity', 'categoryId', 'platform', 'babyId', 'orderTime', 'imageUrl'];
+  const updateData = { updateTime: new Date().toISOString() };
+  
+  for (const field of allowedFields) {
+    if (data[field] !== undefined) {
+      updateData[field] = data[field];
+    }
+  }
+
+  if (updateData.price !== undefined && updateData.quantity !== undefined) {
+    const quantity = parseInt(updateData.quantity);
+    const price = parseFloat(updateData.price);
+    if (quantity > 0 && !isNaN(price)) {
+      updateData.unitPrice = parseFloat((price / quantity).toFixed(2));
     }
   }
 
@@ -165,23 +181,16 @@ async function updateRecord(openid, id, data) {
 async function batchUpdateBaby(openid, recordId, data) {
   const { babyId, updateAll } = data;
 
-  // 获取原记录的 batchId
   const record = await db.collection('records').doc(recordId).get();
   if (!record.data) {
     return { success: false, message: '记录不存在' };
   }
+  if (record.data._openid !== openid) {
+    return { success: false, message: '无权修改该记录' };
+  }
 
-  // 更新当前记录
-  await db.collection('records').doc(recordId).update({
-    data: {
-      babyId: babyId,
-      updateTime: new Date().toISOString()
-    }
-  });
+  let updatedCount = 0;
 
-  let updatedCount = 1;
-
-  // 如果需要更新同批次
   if (updateAll && record.data.batchId) {
     const res = await db.collection('records')
       .where({
@@ -195,7 +204,7 @@ async function batchUpdateBaby(openid, recordId, data) {
           updateTime: new Date().toISOString()
         }
       });
-    updatedCount += res.stats.updated;
+    updatedCount = res.stats.updated;
   }
 
   return {
@@ -204,10 +213,42 @@ async function batchUpdateBaby(openid, recordId, data) {
   };
 }
 
-// 删除记录
-async function deleteRecord(id) {
+// 删除记录（校验权限）
+async function deleteRecord(openid, id) {
+  const existing = await db.collection('records').doc(id).get();
+  if (!existing.data) {
+    return { success: false, message: '记录不存在' };
+  }
+  if (existing.data._openid !== openid) {
+    return { success: false, message: '无权删除该记录' };
+  }
+
+  // 删除关联的云存储图片
+  if (existing.data.imageUrl) {
+    try {
+      await cloud.deleteFile({ fileList: [existing.data.imageUrl] });
+    } catch (e) {
+      console.error('删除云存储图片失败:', e);
+    }
+  }
+
   await db.collection('records').doc(id).remove();
   return { success: true, message: '删除成功' };
+}
+
+async function batchCount(openid, data) {
+  const { batchId, excludeId } = data;
+  if (!batchId) {
+    return { success: false, message: 'batchId 不能为空' };
+  }
+
+  const conditions = { _openid: openid, batchId: batchId };
+  if (excludeId) {
+    conditions._id = _.neq(excludeId);
+  }
+
+  const res = await db.collection('records').where(conditions).count();
+  return { success: true, data: { count: res.total } };
 }
 
 // 查询记录列表

@@ -11,7 +11,7 @@
     </view>
     <view class="total-spent">
       <text class="label">累计消费</text>
-      <text class="amount">¥{{totalSpent.toFixed(2)}}</text>
+      <text class="amount">¥{{totalSpentDisplay}}</text>
     </view>
   </view>
   
@@ -61,7 +61,7 @@
       </view>
       <view class="budget-item">
         <text class="budget-label">本月已花</text>
-        <text class="budget-value {{spentClass}}">¥{{spentThisMonth}}</text>
+        <text class="budget-value {{spentClass}}">¥{{spentThisMonthDisplay}}</text>
       </view>
       <view class="budget-item">
         <text class="budget-label">剩余预算</text>
@@ -154,7 +154,7 @@
       <view class="dialog-content">
         <view class="form-item">
           <text class="form-label">预算金额（元）</text>
-          <input class="form-input" type="number" value="{{budgetForm.amount}}" bindinput="(e) => this.setData({'budgetForm.amount': e.detail.value})" placeholder="请输入预算金额" />
+          <input class="form-input" type="number" value="{{budgetForm.amount}}" bindinput="onBudgetInput" placeholder="请输入预算金额" />
         </view>
       </view>
       <view class="dialog-footer">

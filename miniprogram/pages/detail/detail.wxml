@@ -21,7 +21,7 @@
       
       <view class="info-item">
         <text class="label">价格</text>
-        <text class="value price">¥{{price}}</text>
+        <text class="value price">¥{{priceDisplay}}</text>
       </view>
       
       <view class="info-item">
@@ -29,9 +29,9 @@
         <text class="value">{{quantity}}</text>
       </view>
       
-      <view class="info-item" wx:if="{{unitPrice}}">
+      <view class="info-item" wx:if="{{unitPriceDisplay}}">
         <text class="label">单价</text>
-        <text class="value">¥{{unitPrice}}</text>
+        <text class="value">¥{{unitPriceDisplay}}</text>
       </view>
       
       <view class="info-item">

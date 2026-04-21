@@ -1,14 +1,29 @@
 # 依赖
 node_modules/
+package-lock.json
 
 # 云函数配置（含敏感信息）
 miniprogram/cloudfunctions/*/config.js
+miniprogram/cloudfunctions/ocr/test-token.js
+miniprogram/cloudfunctions/ocr/test-simple.js
+miniprogram/cloudfunctions/ocr/ocr.test.js
+miniprogram/config.js
+
+# 环境变量
+.env
+.env.*
+!.env.example
+
+# 微信开发者工具私有配置
+miniprogram/project.private.config.json
 
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
+.claude/
+.trae/
 
 # 系统文件
 .DS_Store
@@ -21,3 +36,24 @@ npm-debug.log*
 # 临时文件
 *.tmp
 *.temp
+*.bak
+
+# Agent / Memory 文件（非项目代码）
+.openclaw/
+.learnings/
+all-memory/
+miniprogram-memory/
+memory/
+AGENTS.md
+BOOTSTRAP.md
+HEARTBEAT.md
+IDENTITY.md
+SOUL.md
+TOOLS.md
+USER.md
+self-reflection-cron.json
+
+# 非必要文档
+开发进度.md
+测试计划.md
+验证报告*.md

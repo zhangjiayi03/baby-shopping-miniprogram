@@ -1,14 +1,14 @@
-// cloudfunctions/stats/index.js
 const cloud = require('wx-server-sdk');
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 
 const db = cloud.database();
 const _ = db.command;
+const $ = db.command.aggregate;
 
 exports.main = async (event, context) => {
-  const { action, babyId } = event;
-  
+  const { action } = event;
+
   try {
     switch (action) {
       case 'getStats':
@@ -17,6 +17,8 @@ exports.main = async (event, context) => {
         return await getMonthlyStats(event);
       case 'getCategoryStats':
         return await getCategoryStats(event);
+      case 'getTotalStats':
+        return await getTotalStats(event);
       default:
         return { success: false, message: '未知操作类型' };
     }
@@ -26,7 +28,37 @@ exports.main = async (event, context) => {
   }
 };
 
-// 获取统计数据（今日/本月/昨日）
+function buildMatch(openid, startDate, endDate, babyId) {
+  const match = {
+    _openid: openid,
+    orderTime: _.gte(startDate).and(_.lte(endDate))
+  };
+  if (babyId) {
+    match.babyId = babyId;
+  }
+  return match;
+}
+
+async function aggregateSum(openid, startDate, endDate, babyId) {
+  const res = await db.collection('records')
+    .aggregate()
+    .match(buildMatch(openid, startDate, endDate, babyId))
+    .group({
+      _id: null,
+      totalSpent: $.sum($.multiply(['$price', '$quantity'])),
+      count: $.sum(1)
+    })
+    .end();
+
+  if (res.list && res.list.length > 0) {
+    return {
+      spent: parseFloat(res.list[0].totalSpent.toFixed(2)),
+      count: res.list[0].count
+    };
+  }
+  return { spent: 0, count: 0 };
+}
+
 async function getStats(event) {
   const { babyId } = event;
   const now = new Date();
@@ -35,166 +67,155 @@ async function getStats(event) {
   const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
   const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0];
   const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0];
-  
+
   const openid = cloud.getWXContext().OPENID;
-  
-  // 构建查询条件
-  const buildQuery = (startDate, endDate) => {
-    const conditions = [{ _openid: openid }];
-    if (babyId) {
-      conditions.push({ babyId: babyId });
-    }
-    conditions.push({
-      orderTime: _.gte(startDate).and(_.lte(endDate))
-    });
-    return _.and(conditions);
-  };
-  
-  // 今日统计
-  const todayRecords = await db.collection('records')
-    .where(buildQuery(today, today + 'T23:59:59'))
-    .get();
-  const todaySpent = sumSpent(todayRecords.data);
-  
-  // 昨日统计
-  const yesterdayRecords = await db.collection('records')
-    .where(buildQuery(yesterday, yesterday + 'T23:59:59'))
-    .get();
-  const yesterdaySpent = sumSpent(yesterdayRecords.data);
-  
-  // 本月统计
-  const thisMonthRecords = await db.collection('records')
-    .where(buildQuery(thisMonthStart, today + 'T23:59:59'))
-    .get();
-  const spentThisMonth = sumSpent(thisMonthRecords.data);
-  
-  // 上月统计
-  const lastMonthRecords = await db.collection('records')
-    .where(buildQuery(lastMonthStart, lastMonthEnd + 'T23:59:59'))
-    .get();
-  const spentLastMonth = sumSpent(lastMonthRecords.data);
-  
+
+  const [todayResult, yesterdayResult, thisMonthResult, lastMonthResult] = await Promise.all([
+    aggregateSum(openid, today, today + 'T23:59:59', babyId),
+    aggregateSum(openid, yesterday, yesterday + 'T23:59:59', babyId),
+    aggregateSum(openid, thisMonthStart, today + 'T23:59:59', babyId),
+    aggregateSum(openid, lastMonthStart, lastMonthEnd + 'T23:59:59', babyId)
+  ]);
+
   return {
     success: true,
     data: {
-      today: { spent: todaySpent, count: todayRecords.data.length },
-      yesterday: { spent: yesterdaySpent, count: yesterdayRecords.data.length },
-      thisMonth: { spent: spentThisMonth, count: thisMonthRecords.data.length },
-      lastMonth: { spent: spentLastMonth, count: lastMonthRecords.data.length },
-      changePercent: yesterdaySpent > 0 
-        ? Math.round(((todaySpent - yesterdaySpent) / yesterdaySpent) * 100) 
+      today: todayResult,
+      yesterday: yesterdayResult,
+      thisMonth: thisMonthResult,
+      lastMonth: lastMonthResult,
+      changePercent: yesterdayResult.spent > 0
+        ? Math.round(((todayResult.spent - yesterdayResult.spent) / yesterdayResult.spent) * 100)
         : 0
     }
   };
 }
 
-// 获取月度统计（按分类）
 async function getMonthlyStats(event) {
   const { year, month, babyId } = event;
   const now = new Date();
   const targetYear = year || now.getFullYear();
   const targetMonth = month || (now.getMonth() + 1);
-  
+
   const monthStart = new Date(targetYear, targetMonth - 1, 1).toISOString().split('T')[0];
   const monthEnd = new Date(targetYear, targetMonth, 0).toISOString().split('T')[0];
-  
+
   const openid = cloud.getWXContext().OPENID;
-  
-  const conditions = [
-    { _openid: openid },
-    { orderTime: _.gte(monthStart).and(_.lte(monthEnd)) }
-  ];
-  if (babyId) {
-    conditions.push({ babyId: babyId });
-  }
-  
-  const records = await db.collection('records')
-    .where(_.and(conditions))
-    .get();
-  
-  // 按分类统计
-  const categoryStats = {};
+
+  const match = buildMatch(openid, monthStart, monthEnd, babyId);
+
+  const res = await db.collection('records')
+    .aggregate()
+    .match(match)
+    .group({
+      _id: '$categoryId',
+      amount: $.sum($.multiply(['$price', '$quantity'])),
+      count: $.sum(1)
+    })
+    .end();
+
   let totalSpent = 0;
-  
-  records.data.forEach(r => {
-    const categoryId = r.categoryId || 0;
-    const amount = parseFloat(r.price || 0) * (parseInt(r.quantity) || 1);
-    
-    if (!categoryStats[categoryId]) {
-      categoryStats[categoryId] = { categoryId, amount: 0, count: 0 };
-    }
-    
-    categoryStats[categoryId].amount += amount;
-    categoryStats[categoryId].count += 1;
+  const categories = res.list.map(item => {
+    const amount = parseFloat(item.amount.toFixed(2));
     totalSpent += amount;
+    return {
+      categoryId: item._id,
+      amount,
+      count: item.count
+    };
   });
-  
+
+  totalSpent = parseFloat(totalSpent.toFixed(2));
+
   return {
     success: true,
     data: {
-      total: parseFloat(totalSpent.toFixed(2)),
-      categories: Object.values(categoryStats).map(c => ({
+      total: totalSpent,
+      categories: categories.map(c => ({
         ...c,
-        amount: parseFloat(c.amount.toFixed(2)),
         percentage: totalSpent > 0 ? Math.round((c.amount / totalSpent) * 100) : 0
       }))
     }
   };
 }
 
-// 获取平台统计
 async function getCategoryStats(event) {
   const { babyId } = event;
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-  
+  const today = now.toISOString().split('T')[0];
+
   const openid = cloud.getWXContext().OPENID;
-  
-  const conditions = [
-    { _openid: openid },
-    { orderTime: _.gte(monthStart) }
-  ];
-  if (babyId) {
-    conditions.push({ babyId: babyId });
-  }
-  
-  const records = await db.collection('records')
-    .where(_.and(conditions))
-    .get();
-  
-  // 按平台统计
-  const platformStats = {};
+
+  const match = buildMatch(openid, monthStart, today + 'T23:59:59', babyId);
+
+  const res = await db.collection('records')
+    .aggregate()
+    .match(match)
+    .group({
+      _id: '$platform',
+      amount: $.sum($.multiply(['$price', '$quantity'])),
+      count: $.sum(1)
+    })
+    .end();
+
   let totalSpent = 0;
-  
-  records.data.forEach(r => {
-    const platform = r.platform || 'other';
-    const amount = parseFloat(r.price || 0) * (parseInt(r.quantity) || 1);
-    
-    if (!platformStats[platform]) {
-      platformStats[platform] = { platform, amount: 0, count: 0 };
-    }
-    
-    platformStats[platform].amount += amount;
-    platformStats[platform].count += 1;
+  const platforms = res.list.map(item => {
+    const amount = parseFloat(item.amount.toFixed(2));
     totalSpent += amount;
+    return {
+      platform: item._id,
+      amount,
+      count: item.count
+    };
   });
-  
+
+  totalSpent = parseFloat(totalSpent.toFixed(2));
+
   return {
     success: true,
     data: {
-      total: parseFloat(totalSpent.toFixed(2)),
-      platforms: Object.values(platformStats).map(p => ({
+      total: totalSpent,
+      platforms: platforms.map(p => ({
         ...p,
-        amount: parseFloat(p.amount.toFixed(2)),
         percentage: totalSpent > 0 ? Math.round((p.amount / totalSpent) * 100) : 0
       }))
     }
   };
 }
 
-// 辅助函数：计算总消费
-function sumSpent(records) {
-  return parseFloat(records.reduce((sum, r) => 
-    sum + parseFloat(r.price || 0) * (parseInt(r.quantity) || 1), 0
-  ).toFixed(2));
+async function getTotalStats(event) {
+  const openid = cloud.getWXContext().OPENID;
+
+  const [sumRes, daysRes] = await Promise.all([
+    db.collection('records')
+      .aggregate()
+      .match({ _openid: openid })
+      .group({
+        _id: null,
+        totalSpent: $.sum($.multiply(['$price', '$quantity'])),
+        totalCount: $.sum(1)
+      })
+      .end(),
+    db.collection('records')
+      .aggregate()
+      .match({ _openid: openid })
+      .group({
+        _id: '$orderTime'
+      })
+      .end()
+  ]);
+
+  const totalSpent = sumRes.list?.[0]?.totalSpent || 0;
+  const totalRecords = sumRes.list?.[0]?.totalCount || 0;
+  const totalDays = daysRes.list ? daysRes.list.length : 0;
+
+  return {
+    success: true,
+    data: {
+      totalRecords: totalRecords,
+      totalSpent: parseFloat(totalSpent.toFixed(2)),
+      totalDays: totalDays
+    }
+  };
 }

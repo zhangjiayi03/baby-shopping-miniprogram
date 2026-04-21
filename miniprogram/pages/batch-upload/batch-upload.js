@@ -6,6 +6,7 @@ Page({
     processing: false,
     editDialogVisible: false,
     editDialogData: null,
+    editIndex: -1,
     successCount: 0,
     
     // 宝宝选择
@@ -63,13 +64,14 @@ Page({
     }
 
     try {
-      const res = await wx.chooseImage({
+      const res = await wx.chooseMedia({
         count: remaining,
+        mediaType: ['image'],
         sizeType: ['compressed'],
         sourceType: ['album', 'camera'],
       });
 
-      const newImages = res.tempFilePaths;
+      const newImages = res.tempFiles.map(f => f.tempFilePath);
       this.setData({
         imageList: [...imageList, ...newImages],
         statusList: new Array(imageList.length + newImages.length).fill(null)
@@ -173,10 +175,12 @@ Page({
             data: {
               productName: String(ocrData.productName || '未识别商品'),
               price: parseFloat(ocrData.price) || 0,
+              priceDisplay: (parseFloat(ocrData.price) || 0).toFixed(2),
               quantity: parseInt(ocrData.quantity) || 1,
               categoryId: parseInt(ocrData.categoryId) || 7,
               platform: String(ocrData.platform || 'other'),
-              orderTime: String(ocrData.orderTime || new Date().toISOString().split('T')[0])
+              orderTime: String(ocrData.orderTime || new Date().toISOString().split('T')[0]),
+              imageUrl: uploadRes.fileID
             }
           });
         } else {
@@ -212,7 +216,8 @@ Page({
 
     this.setData({
       editDialogVisible: true,
-      editDialogData: item.data
+      editDialogData: item.data,
+      editIndex: index
     });
   },
 
@@ -221,12 +226,17 @@ Page({
   },
 
   onEditConfirm(e) {
-    const { index, data } = e.detail;
-    const { resultList } = this.data;
-    if (resultList[index]) {
+    const data = e.detail;
+    const { resultList, editIndex } = this.data;
+    if (editIndex >= 0 && resultList[editIndex]) {
       const newList = [...resultList];
-      newList[index] = { ...newList[index], data };
-      this.setData({ resultList: newList });
+      const originalData = newList[editIndex].data || {};
+      const mergedData = { ...originalData, ...data };
+      if (data.price !== undefined) {
+        mergedData.priceDisplay = parseFloat(data.price).toFixed(2);
+      }
+      newList[editIndex] = { ...newList[editIndex], data: mergedData };
+      this.setData({ resultList: newList, editIndex: -1 });
     }
     this.hideEditDialog();
   },
@@ -275,43 +285,44 @@ Page({
 
     wx.showLoading({ title: '保存中...', mask: true });
 
-    let savedCount = 0;
-    
-    for (const item of successItems) {
-      try {
-        const dataToSave = { ...item.data, babyId: selectedBabyId };
-        
-        const res = await wx.cloud.callFunction({
-          name: 'record',
-          data: { action: 'create', data: dataToSave }
-        });
+    try {
+      const records = successItems.map(item => ({
+        ...item.data,
+        babyId: selectedBabyId
+      }));
 
-        if (res.result?.success) {
-          savedCount++;
-          const newList = [...this.data.resultList];
-          const targetIndex = newList.findIndex(r => r.index === item.index);
-          if (targetIndex >= 0) {
-            newList[targetIndex] = { ...item, status: 'saved', icon: '💾', statusText: '已保存' };
-            this.setData({ resultList: newList });
-          }
-        }
-      } catch (err) {
-        console.error('保存失败:', err);
-      }
-    }
-
-    wx.hideLoading();
-
-    if (savedCount > 0) {
-      wx.showModal({
-        title: '保存完成',
-        content: `成功保存 ${savedCount} 条记录，是否查看？`,
-        success: (res) => {
-          if (res.confirm) {
-            wx.switchTab({ url: '/pages/index/index' });
-          }
-        }
+      const res = await wx.cloud.callFunction({
+        name: 'record',
+        data: { action: 'batchCreate', data: records }
       });
+
+      if (res.result?.success) {
+        const savedCount = res.result.data.count;
+        const newList = resultList.map(item => {
+          if (item.status === 'success' && item.data) {
+            return { ...item, status: 'saved', icon: '💾', statusText: '已保存' };
+          }
+          return item;
+        });
+        this.setData({ resultList: newList });
+
+        wx.hideLoading();
+        wx.showModal({
+          title: '保存完成',
+          content: `成功保存 ${savedCount} 条记录，是否查看？`,
+          success: (res) => {
+            if (res.confirm) {
+              wx.switchTab({ url: '/pages/index/index' });
+            }
+          }
+        });
+      } else {
+        throw new Error(res.result?.message || '批量保存失败');
+      }
+    } catch (err) {
+      wx.hideLoading();
+      console.error('批量保存失败:', err);
+      wx.showToast({ title: '保存失败', icon: 'none' });
     }
   },
 

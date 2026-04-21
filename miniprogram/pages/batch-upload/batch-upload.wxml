@@ -79,7 +79,7 @@
         </view>
         <view class="result-info" wx:if="{{item.data}}">
           <text class="product-name">{{item.data.productName}}</text>
-          <text class="product-price">¥{{item.data.price}}</text>
+          <text class="product-price">¥{{item.data.priceDisplay}}</text>
         </view>
         <view class="result-error" wx:if="{{item.error}}">
           <text class="error-text">{{item.error}}</text>

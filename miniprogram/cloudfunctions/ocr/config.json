@@ -7,6 +7,6 @@
   "env": {
     "NODE_ENV": "production"
   },
-  "timeout": 10,
-  "memorySize": 256
+  "timeout": 30,
+  "memorySize": 512
 }

@@ -1,5 +1,6 @@
 {
   "navigationBarTitleText": "萌宝账本",
+  "enablePullDownRefresh": true,
   "usingComponents": {
     "budget-card": "/components/budget-card/budget-card",
     "stats-card": "/components/stats-card/stats-card"

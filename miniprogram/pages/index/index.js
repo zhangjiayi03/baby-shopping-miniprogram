@@ -9,7 +9,6 @@ Page({
     hasMore: true,
     loading: false,
     
-    // 筛选条件
     filterCategoryIndex: 0,
     filterPlatformIndex: 0,
     filterBabyIndex: 0,
@@ -17,31 +16,12 @@ Page({
     platform: null,
     babyId: null,
     
-    // 分类和平台选项
-    categories: [
-      { id: 0, name: '全部分类' },
-      { id: 1, name: '喂养' },
-      { id: 2, name: '洗护' },
-      { id: 3, name: '服装' },
-      { id: 4, name: '玩具' },
-      { id: 5, name: '医疗' },
-      { id: 6, name: '教育' },
-      { id: 7, name: '其他' }
-    ],
-    platforms: [
-      { id: 0, name: '全部平台' },
-      { id: 'taobao', name: '淘宝' },
-      { id: 'jd', name: '京东' },
-      { id: 'pdd', name: '拼多多' },
-      { id: 'douyin', name: '抖音' },
-      { id: 'meituan', name: '美团' },
-      { id: 'other', name: '其他' }
-    ],
+    categories: [],
+    platforms: [],
     babies: [
       { id: 0, name: '全部宝宝', nickname: '全部宝宝' }
     ],
     
-    // 预算和统计数据
     monthlyBudget: 2000,
     spentThisMonth: 0,
     todaySpent: 0,
@@ -51,11 +31,18 @@ Page({
 
   onLoad() {
     console.log('📄 首页 onLoad');
+    this.setData({
+      categories: app.globalData.categories,
+      platforms: app.globalData.platforms
+    });
     this.loadBabies();
   },
 
   onShow() {
     console.log('📄 首页 onShow - 刷新数据');
+    const budget = wx.getStorageSync('monthlyBudget') || 2000;
+    this.setData({ monthlyBudget: budget });
+    this.loadBabies();
     this.refreshRecords();
     this.calculateStats();
   },
@@ -142,7 +129,8 @@ Page({
         // 给每条记录添加宝宝昵称
         const processedList = list.map(item => ({
           ...item,
-          babyNickname: babyMap[item.babyId] || ''
+          babyNickname: babyMap[item.babyId] || '',
+          priceDisplay: parseFloat(item.price).toFixed(2)
         }));
         
         if (isRefresh) {
@@ -223,6 +211,8 @@ Page({
         this.setData({ recordList: newList });
         wx.showToast({ title: '删除成功', icon: 'success' });
         this.calculateStats();
+      } else {
+        wx.showToast({ title: res.result?.message || '删除失败', icon: 'none' });
       }
     } catch (error) {
       wx.hideLoading();

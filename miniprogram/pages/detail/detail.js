@@ -6,8 +6,10 @@ Page({
     imageUrl: '',
     productName: '',
     price: '',
+    priceDisplay: '',
     quantity: 1,
     unitPrice: '',
+    unitPriceDisplay: '',
     categoryName: '',
     platformName: '',
     babyId: '',
@@ -15,7 +17,6 @@ Page({
     orderTime: '',
     createTime: '',
     
-    // 编辑相关
     isEditing: false,
     editData: {
       productName: '',
@@ -27,39 +28,25 @@ Page({
       orderTime: ''
     },
     
-    // 批量修改弹窗
     showBatchModal: false,
     batchCount: 0,
     pendingBabyId: '',
     
-    // 宝宝列表
     babies: [
       { id: '', nickname: '不关联' }
     ],
     
-    // 分类选项
-    categories: [
-      { id: 1, name: '喂养' },
-      { id: 2, name: '洗护' },
-      { id: 3, name: '服装' },
-      { id: 4, name: '玩具' },
-      { id: 5, name: '医疗' },
-      { id: 6, name: '教育' },
-      { id: 7, name: '其他' }
-    ],
-    
-    // 平台选项
-    platforms: [
-      { id: 'taobao', name: '淘宝' },
-      { id: 'jd', name: '京东' },
-      { id: 'pdd', name: '拼多多' },
-      { id: 'douyin', name: '抖音' },
-      { id: 'meituan', name: '美团' },
-      { id: 'other', name: '其他' }
-    ]
+    categories: [],
+    platforms: []
   },
 
   onLoad(options) {
+    const app = getApp();
+    this.setData({
+      categories: app.globalData.categories.filter(c => c.id !== 0),
+      platforms: app.globalData.platforms.filter(p => p.id !== 0)
+    });
+
     if (options.id) {
       this.setData({ recordId: options.id });
       this.loadBabies().then(() => {
@@ -123,8 +110,10 @@ Page({
       imageUrl: data.imageUrl || '',
       productName: data.productName || '',
       price: data.price || '',
+      priceDisplay: parseFloat(data.price || 0).toFixed(2),
       quantity: data.quantity || 1,
       unitPrice: data.unitPrice || '',
+      unitPriceDisplay: data.unitPrice ? parseFloat(data.unitPrice).toFixed(2) : '',
       categoryName: this.data.categories[categoryIndex >= 0 ? categoryIndex : 6]?.name || '其他',
       platformName: this.data.platforms[platformIndex >= 0 ? platformIndex : 5]?.name || '其他',
       babyId: data.babyId || '',
@@ -209,14 +198,13 @@ Page({
       const res = await wx.cloud.callFunction({
         name: 'record',
         data: {
-          action: 'list',
-          data: { page: 1, pageSize: 100, batchId }
+          action: 'batchCount',
+          data: { batchId, excludeId: this.data.recordId }
         }
       });
       
       if (res.result?.success) {
-        const count = res.result.data.list.filter(r => r._id !== this.data.recordId).length;
-        this.setData({ batchCount: count });
+        this.setData({ batchCount: res.result.data.count });
       }
     } catch (error) {
       console.error('获取批次数量失败:', error);
@@ -245,7 +233,6 @@ Page({
       wx.showLoading({ title: '保存中...' });
       
       if (updateAll) {
-        // 批量更新
         const res = await wx.cloud.callFunction({
           name: 'record',
           data: {
@@ -255,8 +242,8 @@ Page({
           }
         });
         
-        if (res.result?.success) {
-          wx.showToast({ title: `已更新 ${res.result.data.updatedCount} 条`, icon: 'success' });
+        if (res.result?.success && res.result.data.updatedCount > 0) {
+          wx.showToast({ title: `同步更新 ${res.result.data.updatedCount} 条`, icon: 'success' });
         }
       }
       
@@ -279,12 +266,15 @@ Page({
       wx.hideLoading();
       
       const baby = babies.find(b => b.id === newBabyId);
+      const newUnitPrice = updateData.quantity > 0 ? parseFloat((updateData.price / updateData.quantity).toFixed(2)) : 0;
       this.setData({
         isEditing: false,
         productName: updateData.productName,
         price: updateData.price,
+        priceDisplay: updateData.price.toFixed(2),
         quantity: updateData.quantity,
-        unitPrice: (updateData.price / updateData.quantity).toFixed(2),
+        unitPrice: newUnitPrice,
+        unitPriceDisplay: newUnitPrice.toFixed(2),
         categoryName: categories[editData.categoryIndex].name,
         platformName: platforms[editData.platformIndex].name,
         babyId: newBabyId,
@@ -319,6 +309,8 @@ Page({
             if (result.result?.success) {
               wx.showToast({ title: '删除成功', icon: 'success' });
               setTimeout(() => wx.navigateBack(), 1500);
+            } else {
+              wx.showToast({ title: result.result?.message || '删除失败', icon: 'none' });
             }
           } catch (error) {
             wx.hideLoading();

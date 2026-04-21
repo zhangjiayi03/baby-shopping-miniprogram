@@ -1,4 +1,3 @@
-// 云函数入口文件 - 用户信息管理
 const cloud = require('wx-server-sdk')
 
 cloud.init({
@@ -8,14 +7,12 @@ cloud.init({
 const db = cloud.database()
 const _ = db.command
 
-// 获取用户信息
 async function getInfo(event, context) {
   try {
     const { OPENID } = cloud.getWXContext()
     
-    // 查询用户信息
     const userRes = await db.collection('users').where({
-      openid: OPENID
+      _openid: OPENID
     }).get()
     
     if (userRes.data.length > 0) {
@@ -23,24 +20,23 @@ async function getInfo(event, context) {
         success: true,
         data: userRes.data[0]
       }
-    } else {
-      // 如果用户不存在，创建默认用户
-      const defaultUser = {
-        openid: OPENID,
-        nickname: '用户',
-        avatar: '',
-        createTime: db.serverDate(),
-        updateTime: db.serverDate()
-      }
-      
-      await db.collection('users').add({
-        data: defaultUser
-      })
-      
-      return {
-        success: true,
-        data: defaultUser
-      }
+    }
+    
+    const defaultUser = {
+      nickname: '用户',
+      avatar: '',
+      createTime: db.serverDate(),
+      updateTime: db.serverDate(),
+      _openid: OPENID
+    }
+    
+    await db.collection('users').add({
+      data: defaultUser
+    })
+    
+    return {
+      success: true,
+      data: defaultUser
     }
   } catch (error) {
     console.error('获取用户信息失败:', error)
@@ -51,21 +47,26 @@ async function getInfo(event, context) {
   }
 }
 
-// 更新用户信息
 async function updateInfo(event, context) {
   try {
     const { OPENID } = cloud.getWXContext()
     const { data } = event
-    
-    await db.collection('users').where({
-      openid: OPENID
-    }).update({
-      data: {
-        ...data,
-        updateTime: db.serverDate()
+
+    const allowedFields = ['nickname', 'avatar']
+    const updateData = { updateTime: db.serverDate() }
+
+    for (const field of allowedFields) {
+      if (data[field] !== undefined) {
+        updateData[field] = data[field]
       }
+    }
+
+    await db.collection('users').where({
+      _openid: OPENID
+    }).update({
+      data: updateData
     })
-    
+
     return {
       success: true,
       message: '更新成功'
@@ -79,7 +80,6 @@ async function updateInfo(event, context) {
   }
 }
 
-// 云函数入口函数
 exports.main = async (event, context) => {
   const { action } = event
   

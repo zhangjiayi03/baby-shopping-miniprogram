@@ -14,6 +14,7 @@ Component({
   data: {
     remaining: 0,
     percentage: 0,
+    progressWidth: 0,
     percentageColor: '#4ade80'
   },
 
@@ -25,21 +26,21 @@ Component({
 
   methods: {
     updateBudgetData(budget, spent) {
-      const remaining = budget - spent;
+      const remaining = parseFloat((budget - spent).toFixed(2));
       const percentage = budget > 0 ? Math.round((spent / budget) * 100) : 0;
       
-      // 根据百分比设置颜色
-      let color = '#4ade80'; // 绿色 - 安全
+      let color = '#4ade80';
       if (percentage > 80) {
-        color = '#fbbf24'; // 黄色 - 警告
+        color = '#fbbf24';
       }
       if (percentage > 100) {
-        color = '#ef4444'; // 红色 - 超支
+        color = '#ef4444';
       }
 
       this.setData({
         remaining: remaining,
-        percentage: Math.min(percentage, 100),
+        percentage: percentage,
+        progressWidth: Math.min(percentage, 100),
         percentageColor: color
       });
     }
